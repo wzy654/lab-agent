@@ -20,4 +20,11 @@ export const authApi = {
   me() {
     return get<UserInfo>('/user/info')
   },
+
+  // 注册：POST /auth/register
+  // 后端 RegisterRequest 字段：user_name（账号）、password、name（昵称，可选）
+  // 注册成功后端不返回数据（data 为 null），只返回 message「注册成功」
+  register(user_name: string, password: string, name?: string) {
+    return post<null>('/auth/register', { user_name, password, name: name || null })
+  },
 }
