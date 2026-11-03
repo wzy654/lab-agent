@@ -1,8 +1,11 @@
 // ============================================================
 // 用户模块：用户查询/管理的接口定义
 // 后端已实现：
-//   GET /user/list?page=&page_size=&username= → PageResult<UserInfo>（需管理员）
-// 后端待实现：新增 / 修改 / 删除（下面已约定好接口格式）
+//   GET  /user/list?page=&page_size=&username= → PageResult<UserInfo>（需管理员）
+//   POST /user/add → UserInfo（需管理员）
+//   PUT  /user/admin/update → UserInfo（需管理员）
+//   PUT  /user/admin/status → UserInfo（需管理员）
+// 后端待实现：删除（下面已约定好接口格式）
 // ============================================================
 
 import { del, get, post, put } from '@/utils/request'
@@ -19,24 +22,34 @@ export const userApi = {
     })
   },
 
-  // 新增用户。参数 data 是一个对象，冒号后写的是每个字段的类型
-  // email?: 表示可选字段，调用时可以不传
+  // 新增用户（需管理员 token，后端会校验角色）
+  // 参数与后端 AddUserRequest 对齐：账号、姓名、密码、角色（不传默认 student）
   create(data: {
     user_name: string
     name: string
     role: UserInfo['role'] // 取 UserInfo 里 role 字段的类型，即 'admin' | 'student'
     password: string
-    email?: string | null
-    phone?: string | null
   }) {
-    return post<UserInfo>('/users', data)
+    return post<UserInfo>('/user/add', data)
   },
 
-  // 修改用户：以 user_name 定位用户，data 只传要修改的字段
-  // Partial<UserInfo>：TS 工具类型，表示「UserInfo 的所有字段都变成可选」
-  update(user_name: string, data: Partial<UserInfo>) {
-    return put<UserInfo>(`/users/${user_name}`, data)
-    // `...${user_name}` 是模板字符串：把变量拼进 URL，如 /users/zhangsan
+  // 管理员编辑用户信息（需管理员 token）
+  // 以 user_name 定位用户；data 只传要修改的字段，后端没传的字段保持原值
+  // 账号本身不可修改，所以参数里没有 user_name 的更新，它只作为定位用
+  update(data: {
+    user_name: string
+    name?: string
+    email?: string
+    phone?: string
+    role?: UserInfo['role']
+  }) {
+    return put<UserInfo>('/user/admin/update', data)
+  },
+
+  // 管理员启用/禁用用户（需管理员 token）
+  // status：'1' 启用、'0' 禁用（与后端数据库约定一致）
+  setStatus(user_name: string, status: '0' | '1') {
+    return put<UserInfo>('/user/admin/status', { user_name, status })
   },
 
   // 删除用户

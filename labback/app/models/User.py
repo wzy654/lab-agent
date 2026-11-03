@@ -7,7 +7,7 @@ class User(Base):
     __tablename__ = "user"
     __table_args__ = {"comment": "用户表信息表"}
 
-    user_name: Mapped[str] = mapped_column(String(50), comment="账号", nullable=False)
+    user_name: Mapped[str] = mapped_column(String(50), comment="账号", nullable=False, unique=True)
     password: Mapped[str] = mapped_column(String(255), comment="密码", nullable=False)
     name: Mapped[str] = mapped_column(String(255), comment="昵称", nullable=False)
     role: Mapped[str] = mapped_column(String(255), comment="角色student/admin", nullable=False)

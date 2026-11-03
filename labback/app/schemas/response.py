@@ -1,5 +1,7 @@
 #统一响应类
+from typing import Any
 from typing import Generic, TypeVar
+
 from pydantic import BaseModel
 
 T = TypeVar("T")
@@ -16,3 +18,8 @@ class Result(BaseModel, Generic[T]):
     @classmethod
     def error(cls, code: int = 400, message: str = "fail"):
         return cls(code=code, message=message, data=None)
+
+class PageResult(BaseModel):
+    """分页结果"""
+    list: Any = []
+    total: int = 0
