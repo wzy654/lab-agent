@@ -5,7 +5,7 @@
 //   PUT    /api/labs/:id    同上 → Lab
 //   DELETE /api/labs/:id    → null
 
-import { del, get, post, put } from './request'
+import { del, get, post, put } from '@/utils/request'
 import type { Lab } from './types'
 
 export const labApi = {

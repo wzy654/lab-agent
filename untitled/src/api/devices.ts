@@ -5,7 +5,7 @@
 //   PUT    /api/devices/:id  同上 → Device
 //   DELETE /api/devices/:id  → null
 
-import { del, get, post, put } from './request'
+import { del, get, post, put } from '@/utils/request'
 import type { Device } from './types'
 
 export const deviceApi = {

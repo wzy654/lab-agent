@@ -4,7 +4,7 @@
 //   GET /api/bookings?limit=5 → Booking[]（最近预约）
 //   POST /api/bookings     { lab_id, start_time, end_time } → Booking
 
-import { get, post } from './request'
+import { get, post } from '@/utils/request'
 import type { Booking, HomeStats } from './types'
 
 export const homeApi = {

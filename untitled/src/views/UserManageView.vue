@@ -9,7 +9,6 @@ const loading = ref(true)
 
 const roleText: Record<UserInfo['role'], string> = {
   admin: '管理员',
-  teacher: '教师',
   student: '学生',
 }
 
@@ -35,7 +34,7 @@ onMounted(async () => {
 
     <el-table v-loading="loading" :data="users" style="width: 100%">
       <el-table-column prop="name" label="姓名" width="120" />
-      <el-table-column prop="account" label="学号 / 工号" width="140" />
+      <el-table-column prop="user_name" label="学号 / 工号" width="140" />
       <el-table-column label="角色" width="100">
         <template #default="{ row }">
           <el-tag :type="row.role === 'admin' ? 'danger' : 'primary'" size="small" effect="plain">
@@ -43,8 +42,15 @@ onMounted(async () => {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="college" label="院系" min-width="150" />
-      <el-table-column prop="monthly_bookings" label="本月预约次数" width="120" />
+      <el-table-column prop="email" label="邮箱" min-width="160" />
+      <el-table-column prop="phone" label="手机号" width="130" />
+      <el-table-column label="状态" width="90">
+        <template #default="{ row }">
+          <el-tag :type="row.status === '1' ? 'success' : 'info'" size="small" effect="plain">
+            {{ row.status === '1' ? '启用' : '禁用' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="160">
         <template #default>
           <el-button link type="primary" size="small">编辑</el-button>

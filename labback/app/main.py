@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.middleware.cors import CORSMiddleware
 
 from app.api import api
 from app.database import Base, engine
@@ -9,8 +10,18 @@ from app.utils.logger import get_logger
 
 #fastapi 应用实例
 app = FastAPI()
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 app.include_router(api)
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,#允许的来源
+    allow_credentials=True,#允许跨域请求携带凭证
+    allow_methods=["*"],#允许的请求方法
+    allow_headers=["*"],#允许的请求头
+)
 logger = get_logger()
 
 #统一异常处理：所有异常最终都转换为 {code, message, data} 格式

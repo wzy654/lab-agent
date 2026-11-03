@@ -1,12 +1,16 @@
 // 与后端约定的数据结构，FastAPI 的 Pydantic 模型请与此保持一致
 
+// 与后端 UserResponse（app/schemas/user.py）保持一致，后端字段为准
 export interface UserInfo {
-  id: number
+  user_name: string
   name: string
-  account: string
-  role: 'admin' | 'teacher' | 'student'
-  college: string
-  monthly_bookings: number
+  /** 角色，后端约定：student / admin */
+  role: 'admin' | 'student'
+  email: string | null
+  phone: string | null
+  avatar: string | null
+  /** 状态，后端约定：0 禁用 / 1 启用 */
+  status: '0' | '1'
 }
 
 export interface Lab {

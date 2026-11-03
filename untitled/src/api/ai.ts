@@ -3,7 +3,7 @@
 //   POST /api/ai/chat  { messages: ChatMessage[] } → { reply: string }
 // 若改用 SSE 流式返回，可在此封装 EventSource / fetch stream
 
-import { post } from './request'
+import { post } from '@/utils/request'
 import type { ChatMessage } from './types'
 
 export const aiApi = {
