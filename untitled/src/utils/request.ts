@@ -108,19 +108,30 @@ instance.interceptors.response.use(
 // <T> 泛型：调用时传入期望的返回数据类型，如 request<LoginResult>(...)
 // options?.method 中的 ?. 表示 options 可能是 undefined
 // ?? 'GET' 表示不传 method 时默认用 GET
-export function request<T>(path: string, options?: { method?: string; data?: unknown }) {
+export function request<T>(
+  path: string,
+  options?: {
+    method?: string
+    data?: unknown
+    // GET 的查询参数：axios 会拼到 URL 上（如 /user/list?page=1&username=admin）
+    // 注意：GET 的参数放这里（URL 上），POST/PUT 的才放 data（请求体里）
+    params?: Record<string, unknown>
+  },
+) {
   // instance.request<never, T> 的第二个泛型参数 T 表示「拦截器处理完之后的返回类型」
   // （拦截器已经把 body.data 剥出来了，所以返回值就是 T）
   return instance.request<never, T>({
     url: path,
     method: options?.method ?? 'GET',
     data: options?.data, // POST/PUT 的请求体，axios 会自动 JSON 序列化
+    params: options?.params, // GET 的查询参数，axios 会自动拼 URL 并做 URL 编码
   })
 }
 
-// 下面四个是快捷方法，日常开发直接用它们即可
-// get：查询数据
-export const get = <T>(path: string) => request<T>(path)
+// 下面几个是快捷方法，日常开发直接用它们即可
+// get：查询数据，params 是查询参数（可选）
+export const get = <T>(path: string, params?: Record<string, unknown>) =>
+  request<T>(path, { params })
 
 // post：新建数据，data 是要提交的内容
 export const post = <T>(path: string, data?: unknown) =>

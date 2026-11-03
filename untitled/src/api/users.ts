@@ -1,20 +1,22 @@
 // ============================================================
-// 用户模块：用户增删改查的接口定义
-// 后端已实现：GET /user/info（当前登录用户信息）
-// 后端待实现：用户列表 / 新增 / 修改 / 删除（下面已约定好接口格式）
-//   GET    /users             → UserInfo[]
-//   POST   /users             { user_name, name, role, password, ... } → UserInfo
-//   PUT    /users/:user_name  同上 → UserInfo
-//   DELETE /users/:user_name  → null
+// 用户模块：用户查询/管理的接口定义
+// 后端已实现：
+//   GET /user/list?page=&page_size=&username= → PageResult<UserInfo>（需管理员）
+// 后端待实现：新增 / 修改 / 删除（下面已约定好接口格式）
 // ============================================================
 
 import { del, get, post, put } from '@/utils/request'
-import type { UserInfo } from './types'
+import type { PageResult, UserInfo } from './types'
 
 export const userApi = {
-  // 获取用户列表。UserInfo[] 表示「UserInfo 类型的数组」
-  list() {
-    return get<UserInfo[]>('/users')
+  // 分页查询用户列表（需管理员 token，后端会校验角色）
+  // page 页码（从 1 开始）、pageSize 每页条数、username 按姓名模糊搜索（可选）
+  page(page: number, pageSize: number, username?: string) {
+    return get<PageResult<UserInfo>>('/user/list', {
+      page,
+      page_size: pageSize, // 字段名以后端为准：后端参数叫 page_size
+      username,            // undefined 的参数 axios 会自动丢弃，不会拼到 URL 上
+    })
   },
 
   // 新增用户。参数 data 是一个对象，冒号后写的是每个字段的类型

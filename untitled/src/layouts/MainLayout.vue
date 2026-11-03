@@ -11,9 +11,12 @@ import { useRouter } from 'vue-router'
 import { ChatDotRound, Cpu, House, Monitor, SwitchButton, User } from '@element-plus/icons-vue'
 // 登出方法：清 token 和用户信息（见 utils/auth.ts）
 import { logout } from '@/utils/auth'
+// 全局用户信息：用来判断当前登录者是不是管理员（决定是否显示「用户管理」菜单）
+import { useUser } from '@/utils/user'
 
 const router = useRouter()
 const isCollapse = ref(false)
+const { userInfo } = useUser()
 
 // 退出登录：清理本地缓存并回到登录页（后端暂无登出接口）
 function handleLogout() {
@@ -55,7 +58,8 @@ function handleLogout() {
           <el-icon><Cpu /></el-icon>
           <template #title>设备管理</template>
         </el-menu-item>
-        <el-menu-item index="/users">
+        <!-- 用户管理仅管理员可见（后端接口也校验了管理员角色，双保险） -->
+        <el-menu-item v-if="userInfo?.role === 'admin'" index="/users">
           <el-icon><User /></el-icon>
           <template #title>用户管理</template>
         </el-menu-item>

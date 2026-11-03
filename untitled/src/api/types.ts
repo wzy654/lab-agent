@@ -70,6 +70,14 @@ export interface UploadResult {
   url: string
 }
 
+/** 分页查询的通用返回结构，对应后端 PageResult（app/schemas/response.py） */
+export interface PageResult<T> {
+  /** 当前页的数据列表 */
+  list: T[]
+  /** 满足条件的总条数（分页控件靠它算总页数） */
+  total: number
+}
+
 /** 登录返回 */
 export interface LoginResult {
   token: string
