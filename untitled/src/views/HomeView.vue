@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, useTemplateRef } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Calendar, DataBoard, House, Clock, User } from '@element-plus/icons-vue'
+import { Calendar, DataBoard, House, Clock, Lock, User } from '@element-plus/icons-vue'
 import { homeApi } from '@/api/home'
 import { authApi } from '@/api/auth'
 import { fileApi } from '@/api/files'
 import { fileUrl } from '@/utils/request'
+import { logout } from '@/utils/auth'
 import type { Booking, HomeStats, UploadResult } from '@/api/types'
 // 全局共享的用户信息（登录时存入 localStorage，见 utils/user.ts）
 import { useUser } from '@/utils/user'
@@ -39,6 +41,40 @@ const profileForm = reactive({
 
 const avatarUploading = ref(false) // 头像上传中标记
 
+// 表单实例：用于触发整表校验（validate 方法）
+const profileFormRef = useTemplateRef('profileFormRef')
+
+// 校验规则：姓名必填；邮箱/手机号选填但格式要合法
+// validator 自定义校验：通过调 callback()，失败调 callback(new Error('原因'))
+const profileRules = {
+  name: [{ required: true, message: '姓名不能为空', trigger: 'blur' }],
+  email: [
+    {
+      // 选填字段：空值放行，填了才校验格式
+      validator: (_rule: unknown, value: string, callback: (err?: Error) => void) => {
+        if (value && !/^[\w.%+-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(value)) {
+          callback(new Error('邮箱格式不正确'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
+  phone: [
+    {
+      validator: (_rule: unknown, value: string, callback: (err?: Error) => void) => {
+        if (value && !/^1[3-9]\d{9}$/.test(value)) {
+          callback(new Error('手机号格式不正确'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
+}
+
 // 换头像：el-upload 选中图片后立刻走这里（:http-request 接管了默认上传行为）
 // option.file 是用户选中的 File 对象
 async function handleAvatarUpload(option: { file: File }) {
@@ -61,6 +97,9 @@ async function handleAvatarUpload(option: { file: File }) {
     // 第三步：刷新全局用户信息，右上角头像立即变成新图片
     updateUser(updated)
     ElMessage.success('头像已更新')
+  } catch (e) {
+    // 失败必须提示（如「文件类型不允许」「文件过大」），不能静默吞掉
+    ElMessage.error(e instanceof Error ? e.message : '头像上传失败')
   } finally {
     avatarUploading.value = false
   }
@@ -84,18 +123,114 @@ async function openProfile() {
   }
 }
 
-// 保存修改：调 PUT /user/update，只传允许修改的三个字段
+// ---------- 修改密码弹窗 ----------
+const router = useRouter()
+const pwdVisible = ref(false)          // 改密码弹窗显隐
+const pwdSaving = ref(false)           // 提交 loading
+
+// 密码表单：三个输入框都用 el-input 的 show-password，默认打码可切换明文
+const pwdForm = reactive({
+  old: '',
+  new: '',
+  confirm: '',
+})
+
+// 弹窗里表单实例（和 profileFormRef 同理，用于触发校验）
+const pwdFormRef = useTemplateRef('pwdFormRef')
+
+const pwdRules = {
+  old: [{ required: true, message: '请输入旧密码', trigger: 'blur' }],
+  new: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, max: 30, message: '密码长度为 6-30 位', trigger: 'blur' },
+    {
+      // 新密码不能和旧密码相同（后端也校验了，前端提前拦截体验更好）
+      validator: (_rule: unknown, value: string, callback: (err?: Error) => void) => {
+        if (value && value === pwdForm.old) {
+          callback(new Error('新密码不能与旧密码相同'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
+  confirm: [
+    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    {
+      // 两次输入必须一致
+      validator: (_rule: unknown, value: string, callback: (err?: Error) => void) => {
+        if (value && value !== pwdForm.new) {
+          callback(new Error('两次输入的密码不一致'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
+}
+
+// 打开修改密码弹窗，并清空上一次的输入
+function openPwd() {
+  pwdForm.old = ''
+  pwdForm.new = ''
+  pwdForm.confirm = ''
+  pwdVisible.value = true
+}
+
+// 提交改密码：成功后自动登出，强制用新密码重新登录
+async function savePassword() {
+  // 校验不通过时 validate() 会 reject，catch 住直接返回（红字已显示在输入框下）
+  try {
+    await pwdFormRef.value?.validate()
+  } catch {
+    return
+  }
+  pwdSaving.value = true
+  try {
+    await authApi.updatePassword(pwdForm.old, pwdForm.new)
+    ElMessage.success('密码修改成功，请重新登录')
+    pwdVisible.value = false
+    profileVisible.value = false
+    logout()               // 清掉 token 和用户信息（见 utils/auth.ts）
+    router.push('/login')  // 回到登录页
+  } catch (e) {
+    // 失败必须提示（如「旧密码错误」），不能静默吞掉
+    ElMessage.error(e instanceof Error ? e.message : '密码修改失败')
+  } finally {
+    pwdSaving.value = false
+  }
+}
+
+// 保存修改：校验通过后调 PUT /user/update
+// 关键规则：只提交「非空」的字段——空白项不上送，避免把数据库里已有的值置空
 async function saveProfile() {
+  // 校验不通过时 validate() 会 reject，catch 住直接返回（红字已显示在输入框下）
+  try {
+    await profileFormRef.value?.validate()
+  } catch {
+    return
+  }
+  // .trim() 去掉首尾空格，防止输入纯空格绕过「非空」判断
+  const payload: { name?: string; email?: string; phone?: string } = {}
+  if (profileForm.name.trim()) payload.name = profileForm.name.trim()
+  if (profileForm.email.trim()) payload.email = profileForm.email.trim()
+  if (profileForm.phone.trim()) payload.phone = profileForm.phone.trim()
+  // 三个字段全为空：说明用户什么都没改（回显时字段可能为空），直接提示并中止
+  if (Object.keys(payload).length === 0) {
+    ElMessage.warning('请至少填写一项要保存的内容')
+    return
+  }
   profileSaving.value = true
   try {
-    const updated = await authApi.updateProfile({
-      name: profileForm.name,
-      email: profileForm.email,
-      phone: profileForm.phone,
-    })
+    const updated = await authApi.updateProfile(payload)
     updateUser(updated)               // 用后端返回的最新数据刷新全局（头像首字等立即变）
     ElMessage.success('保存成功')
     profileVisible.value = false
+  } catch (e) {
+    // 失败必须提示，不能静默吞掉
+    ElMessage.error(e instanceof Error ? e.message : '保存失败')
   } finally {
     profileSaving.value = false
   }
@@ -249,7 +384,8 @@ function fmtTime(iso: string) {
           <span class="profile-avatar-tip">点击头像更换</span>
         </div>
 
-        <el-form label-width="80px">
+        <!-- el-form 绑定数据和规则；prop 必须和 rules 里的 key 对应，校验才会生效 -->
+        <el-form ref="profileFormRef" :model="profileForm" :rules="profileRules" label-width="80px">
           <!-- disabled：只读项，账号和角色不允许修改 -->
           <el-form-item label="账号">
             <el-input :model-value="userInfo?.user_name" disabled />
@@ -257,20 +393,48 @@ function fmtTime(iso: string) {
           <el-form-item label="角色">
             <el-input :model-value="roleText" disabled />
           </el-form-item>
-          <el-form-item label="姓名">
+          <el-form-item label="姓名" prop="name">
             <el-input v-model="profileForm.name" placeholder="请输入姓名" maxlength="30" />
           </el-form-item>
-          <el-form-item label="邮箱">
+          <el-form-item label="邮箱" prop="email">
             <el-input v-model="profileForm.email" placeholder="请输入邮箱" maxlength="50" />
           </el-form-item>
-          <el-form-item label="手机号">
+          <el-form-item label="手机号" prop="phone">
             <el-input v-model="profileForm.phone" placeholder="请输入手机号" maxlength="20" />
           </el-form-item>
         </el-form>
       </div>
       <template #footer>
         <el-button @click="profileVisible = false">取消</el-button>
+        <!-- 修改密码：打开二级弹窗（不放在表单里是因为密码不属于「个人信息」） -->
+        <el-button type="warning" plain :icon="Lock" @click="openPwd">修改密码</el-button>
         <el-button type="primary" :loading="profileSaving" @click="saveProfile">保存修改</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 修改密码弹窗：成功后自动登出回登录页 -->
+    <el-dialog v-model="pwdVisible" title="修改密码" width="400px" append-to-body>
+      <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-width="90px">
+        <!-- show-password：输入框右侧出现小眼睛，可切换明文/密文 -->
+        <el-form-item label="旧密码" prop="old">
+          <el-input v-model="pwdForm.old" type="password" show-password placeholder="请输入旧密码" />
+        </el-form-item>
+        <el-form-item label="新密码" prop="new">
+          <el-input v-model="pwdForm.new" type="password" show-password placeholder="6-30 位" />
+        </el-form-item>
+        <el-form-item label="确认新密码" prop="confirm">
+          <el-input
+            v-model="pwdForm.confirm"
+            type="password"
+            show-password
+            placeholder="请再次输入新密码"
+            @keyup.enter="savePassword"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="pwdVisible = false">取消</el-button>
+        <el-button type="primary" :loading="pwdSaving" @click="savePassword">确认修改</el-button>
       </template>
     </el-dialog>
   </div>

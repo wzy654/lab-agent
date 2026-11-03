@@ -39,4 +39,11 @@ export const authApi = {
   }) {
     return put<UserInfo>('/user/update', data)
   },
+
+  // 修改当前登录用户的密码：PUT /user/password
+  // 后端校验：旧密码必须正确、新密码不能与旧密码相同
+  // 成功后前端需要登出，让用户用新密码重新登录
+  updatePassword(old_password: string, new_password: string) {
+    return put<null>('/user/password', { old_password, new_password })
+  },
 }
