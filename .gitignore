@@ -6,6 +6,9 @@ venv/
 logs/
 .env
 
+# 用户上传的文件（运行时产生，不入库）
+labback/uploads/
+
 # Node
 node_modules/
 dist/

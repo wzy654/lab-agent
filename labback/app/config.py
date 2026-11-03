@@ -14,3 +14,14 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+#文件目录
+UPLOAD_DIR = BASE_DIR / "uploads"
+#创建上传目录
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+MAX_FILE_SIZE = 1024 * 1024 * 100 # 100MB max
+
+#上传文件类型
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".pdf", ".docx", ".xlsx", ".xls", ".txt", ".doc",
+                      ".zip"
+                      }

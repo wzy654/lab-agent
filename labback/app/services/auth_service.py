@@ -35,5 +35,5 @@ def register(db: Session,data:RegisterRequest):
     # 提交事务
     db.commit()
     # 刷新用户信息
-    db.flush()
+    db.refresh(user)
 

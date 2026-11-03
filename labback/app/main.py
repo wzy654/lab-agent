@@ -2,8 +2,10 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
 
 from app.api import api
+from app.config import UPLOAD_DIR
 from app.database import Base, engine
 from app.exceptions import BizError, ErrorCode
 from app.utils.logger import get_logger
@@ -22,6 +24,8 @@ app.add_middleware(
     allow_methods=["*"],#允许的请求方法
     allow_headers=["*"],#允许的请求头
 )
+#挂载文件上传目录
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 logger = get_logger()
 
 #统一异常处理：所有异常最终都转换为 {code, message, data} 格式

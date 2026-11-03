@@ -1,12 +1,23 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Calendar, DataBoard, House, Clock } from '@element-plus/icons-vue'
 import { homeApi } from '@/api/home'
 import type { Booking, HomeStats } from '@/api/types'
+// 全局共享的用户信息（登录时存入 localStorage，见 utils/user.ts）
+import { useUser } from '@/utils/user'
 
 const stats = ref<HomeStats>()
 const recent = ref<Booking[]>([])
 const loading = ref(true)
+
+// 用户信息：头像和悬停文案用
+const { userInfo } = useUser()
+// 计算属性：头像显示姓名首字；拿不到用户信息时显示 ?
+const initial = computed(() => userInfo.value?.name?.charAt(0) ?? '?')
+// 计算属性：角色中文文案（后端 role 是 'admin' / 'student'）
+const roleText = computed(() =>
+  userInfo.value?.role === 'admin' ? '管理员' : userInfo.value ? '学生' : '未登录',
+)
 
 onMounted(async () => {
   try {
@@ -38,16 +49,30 @@ function fmtTime(iso: string) {
 <template>
   <div class="home">
     <main class="home-main">
-      <!-- 欢迎横幅 -->
+      <!-- 欢迎横幅：右侧预留头像位置 -->
       <section class="banner">
         <div>
           <h1>欢迎使用智能实验室预约系统</h1>
           <p>在此预约实验室、管理设备，或向 AI 助手提问。</p>
         </div>
-        <el-button type="primary" size="large" round>
-          <el-icon style="margin-right: 6px"><Calendar /></el-icon>
-          立即预约
-        </el-button>
+        <!-- 右侧：按钮 + 头像，水平排列 -->
+        <div class="banner-right">
+          <el-button type="primary" size="large" round>
+            <el-icon style="margin-right: 6px"><Calendar /></el-icon>
+            立即预约
+          </el-button>
+          <!-- el-popover：悬浮弹层，trigger="hover" 鼠标移上去显示姓名和身份 -->
+          <el-popover trigger="hover" placement="bottom-end" :width="150">
+            <!-- #reference 具名插槽：弹层锚点，即鼠标悬停的目标元素 -->
+            <template #reference>
+              <!-- el-avatar：头像组件；无照片时显示文字（姓名首字） -->
+              <el-avatar class="avatar" :size="40">{{ initial }}</el-avatar>
+            </template>
+            <!-- 弹层内容：姓名 + 身份 -->
+            <div class="popover-name">{{ userInfo?.name ?? '未知用户' }}</div>
+            <div class="popover-role">{{ roleText }}</div>
+          </el-popover>
+        </div>
       </section>
 
       <!-- 数据统计 -->
@@ -157,6 +182,38 @@ function fmtTime(iso: string) {
 .banner p {
   opacity: 0.85;
   font-size: 14px;
+}
+
+/* 横幅右侧：按钮 + 头像水平排列 */
+.banner-right {
+  display: flex;
+  align-items: center;
+  gap: 20px; /* 按钮与头像的间距 */
+}
+
+/* 文字头像：白底蓝字，在蓝色渐变横幅上更醒目 */
+.avatar {
+  background-color: #fff;
+  color: #1f6feb;
+  font-weight: 600;
+  cursor: default; /* 纯展示，不显示手型 */
+  flex-shrink: 0; /* 不允许被压缩 */
+}
+
+/* 悬停弹层里的姓名行 */
+.popover-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2d3d;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+/* 悬停弹层里的身份行 */
+.popover-role {
+  font-size: 12px;
+  color: #909399;
+  text-align: center;
 }
 
 .stats {
