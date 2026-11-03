@@ -12,7 +12,7 @@ auth_router = APIRouter(prefix="/auth",tags=["权限验证"])
 
 @auth_router.post(path="/login", response_model=Result[LoginResponse])
 def login(data: LoginRequest,db: Session = Depends(get_db)):
-    return (Result.success(data=auth_service.login(db,data), message="登录成功"))
+    return Result.success(data=auth_service.login(db, data), message="登录成功")
 
 
 @auth_router.post(path="/register", response_model=Result[LoginResponse])

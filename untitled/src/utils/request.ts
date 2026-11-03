@@ -19,6 +19,16 @@ import { getToken, removeToken } from './auth'
 // || '/api' 是兜底写法：如果 .env 里没配置，就用 '/api'
 const BASE_URL = import.meta.env.VITE_API_BASE || '/api'
 
+// 静态文件（上传的图片等）的基础地址：把 API 地址末尾的 /api 去掉
+// 例：http://127.0.0.1:8000/api → http://127.0.0.1:8000
+const FILE_BASE = BASE_URL.replace(/\/api$/, '')
+
+// 把后端返回的相对路径（如 uploads/xxx.png）拼成可直接访问的完整 URL
+// 已经是完整地址（http 开头）的原样返回
+export function fileUrl(url: string) {
+  return url.startsWith('http') ? url : `${FILE_BASE}/${url}`
+}
+
 // 创建一个 axios 实例。不直接用全局 axios，是为了让配置只影响本项目
 const instance = axios.create({
   baseURL: BASE_URL, // 所有请求的 URL 都会自动拼上这个前缀
@@ -121,3 +131,15 @@ export const put = <T>(path: string, data?: unknown) => request<T>(path, { metho
 
 // del：删除数据（不叫 delete 是为了避免和 JS 保留字混淆）
 export const del = <T>(path: string) => request<T>(path, { method: 'DELETE' })
+
+// upload：上传文件专用。和 post 的区别是请求体用 FormData（multipart/form-data 格式），
+// 而不是 JSON——后端 UploadFile 参数只认 multipart 表单
+// new FormData() 是浏览器内置对象，append(字段名, 文件) 把文件装进表单；
+// 字段名必须是 'file'，和后端 upload(file: UploadFile) 的参数名一致
+// 注意：不能手动设 Content-Type，axios 检测到 FormData 会自动加上
+// multipart 边界（boundary），手动设反而会缺 boundary 导致后端解析失败
+export async function upload<T>(path: string, file: File) {
+  const fd = new FormData()
+  fd.append('file', file)
+  return instance.request<never, T>({ url: path, method: 'POST', data: fd })
+}

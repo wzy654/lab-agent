@@ -12,3 +12,10 @@ class UserResponse(BaseModel):
     status: str
     #配置模型属性,对象可转换为json
     model_config = ConfigDict(from_attributes=True)
+
+class UserUpdateRequest(BaseModel):
+    name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    avatar: str | None = None
+

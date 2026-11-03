@@ -8,6 +8,7 @@ from fastapi import APIRouter, File, UploadFile
 
 from app.config import ALLOWED_EXTENSIONS, MAX_FILE_SIZE, UPLOAD_DIR
 from app.exceptions import BizError
+from app.schemas.file import FileResponse
 from app.schemas.response import Result
 
 file_router = APIRouter(prefix="/files",tags=["文件管理"])
@@ -39,7 +40,8 @@ def upload(file: UploadFile = File(...)):
         #流式写入文件内容
         shutil.copyfileobj(file.file, f)
 
-    return Result.success(data={"origin_name": origin_name,"file_name": disk_name,"size": file.size
-                                ,"url": f"uploads/{disk_name}"
-                                }
+    return Result.success(data=FileResponse(origin_name=origin_name,
+                                            file_name=disk_name,
+                                            size=file.size,
+                                            url=f"uploads/{disk_name}")
                           , message="文件上传成功")

@@ -58,6 +58,18 @@ export interface ChatMessage {
   content: string
 }
 
+/** 文件上传接口（POST /files/upload）返回的文件信息 */
+export interface UploadResult {
+  /** 原始文件名，如 66.png */
+  origin_name: string
+  /** 磁盘上保存的唯一文件名 */
+  file_name: string
+  /** 文件大小（字节） */
+  size: number | null
+  /** 相对路径（如 uploads/xxx.png），存库/显示都用它 */
+  url: string
+}
+
 /** 登录返回 */
 export interface LoginResult {
   token: string

@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { Calendar, DataBoard, House, Clock } from '@element-plus/icons-vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import { Calendar, DataBoard, House, Clock, User } from '@element-plus/icons-vue'
 import { homeApi } from '@/api/home'
-import type { Booking, HomeStats } from '@/api/types'
+import { authApi } from '@/api/auth'
+import { fileApi } from '@/api/files'
+import { fileUrl } from '@/utils/request'
+import type { Booking, HomeStats, UploadResult } from '@/api/types'
 // 全局共享的用户信息（登录时存入 localStorage，见 utils/user.ts）
 import { useUser } from '@/utils/user'
 
@@ -10,14 +14,92 @@ const stats = ref<HomeStats>()
 const recent = ref<Booking[]>([])
 const loading = ref(true)
 
-// 用户信息：头像和悬停文案用
-const { userInfo } = useUser()
+// 用户信息：头像和悬停文案用；updateUser 用于保存后同步全局
+const { userInfo, updateUser } = useUser()
 // 计算属性：头像显示姓名首字；拿不到用户信息时显示 ?
 const initial = computed(() => userInfo.value?.name?.charAt(0) ?? '?')
+// 计算属性：有头像时拼出完整图片地址；没有则返回 null（模板里回退到文字头像）
+const avatarSrc = computed(() => (userInfo.value?.avatar ? fileUrl(userInfo.value.avatar) : null))
 // 计算属性：角色中文文案（后端 role 是 'admin' / 'student'）
 const roleText = computed(() =>
   userInfo.value?.role === 'admin' ? '管理员' : userInfo.value ? '学生' : '未登录',
 )
+
+// ---------- 个人信息弹窗 ----------
+const profileVisible = ref(false)      // 弹窗显隐
+const profileLoading = ref(false)      // 回显查询的 loading
+const profileSaving = ref(false)       // 保存按钮的 loading，防止重复提交
+
+// 表单数据：reactive 适合对象；账号/角色只读不进表单可编辑区
+const profileForm = reactive({
+  name: '',
+  email: '',
+  phone: '',
+})
+
+const avatarUploading = ref(false) // 头像上传中标记
+
+// 换头像：el-upload 选中图片后立刻走这里（:http-request 接管了默认上传行为）
+// option.file 是用户选中的 File 对象
+async function handleAvatarUpload(option: { file: File }) {
+  const file = option.file
+  // 前端先做一层简单校验：只收图片、不超过 5MB（后端还有一道校验兜底）
+  if (!file.type.startsWith('image/')) {
+    ElMessage.warning('只能上传图片文件')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.warning('图片不能超过 5MB')
+    return
+  }
+  avatarUploading.value = true
+  try {
+    // 第一步：把图片传给文件接口，拿到相对路径（如 uploads/xxx.png）
+    const result: UploadResult = await fileApi.uploadFile(file)
+    // 第二步：把路径写进当前用户的 avatar 字段
+    const updated = await authApi.updateProfile({ avatar: result.url })
+    // 第三步：刷新全局用户信息，右上角头像立即变成新图片
+    updateUser(updated)
+    ElMessage.success('头像已更新')
+  } finally {
+    avatarUploading.value = false
+  }
+}
+
+// 点击「个人信息」：打开弹窗并调接口查最新信息回显（避免显示 localStorage 里的旧数据）
+async function openProfile() {
+  profileVisible.value = true
+  profileLoading.value = true
+  try {
+    const info = await authApi.me()   // GET /user/info，自动带 token
+    updateUser(info)                  // 顺便同步全局用户信息
+    profileForm.name = info.name ?? ''
+    profileForm.email = info.email ?? ''
+    profileForm.phone = info.phone ?? ''
+  } catch {
+    // 请求失败时用本地缓存兜底回显
+    profileForm.name = userInfo.value?.name ?? ''
+  } finally {
+    profileLoading.value = false
+  }
+}
+
+// 保存修改：调 PUT /user/update，只传允许修改的三个字段
+async function saveProfile() {
+  profileSaving.value = true
+  try {
+    const updated = await authApi.updateProfile({
+      name: profileForm.name,
+      email: profileForm.email,
+      phone: profileForm.phone,
+    })
+    updateUser(updated)               // 用后端返回的最新数据刷新全局（头像首字等立即变）
+    ElMessage.success('保存成功')
+    profileVisible.value = false
+  } finally {
+    profileSaving.value = false
+  }
+}
 
 onMounted(async () => {
   try {
@@ -65,12 +147,18 @@ function fmtTime(iso: string) {
           <el-popover trigger="hover" placement="bottom-end" :width="150">
             <!-- #reference 具名插槽：弹层锚点，即鼠标悬停的目标元素 -->
             <template #reference>
-              <!-- el-avatar：头像组件；无照片时显示文字（姓名首字） -->
-              <el-avatar class="avatar" :size="40">{{ initial }}</el-avatar>
+              <!-- el-avatar：有头像图片显示图片（src），否则显示姓名首字（默认插槽） -->
+              <el-avatar class="avatar" :size="40" :src="avatarSrc">{{ initial }}</el-avatar>
             </template>
-            <!-- 弹层内容：姓名 + 身份 -->
+            <!-- 弹层内容：姓名 + 身份 + 个人信息入口 -->
             <div class="popover-name">{{ userInfo?.name ?? '未知用户' }}</div>
             <div class="popover-role">{{ roleText }}</div>
+            <div class="popover-divider"></div>
+            <!-- 点击打开个人信息弹窗 -->
+            <div class="popover-action" @click="openProfile">
+              <el-icon><User /></el-icon>
+              <span>个人信息</span>
+            </div>
           </el-popover>
         </div>
       </section>
@@ -147,6 +235,44 @@ function fmtTime(iso: string) {
         </el-card>
       </section>
     </main>
+
+    <!-- 个人信息弹窗：回显并可编辑，账号/角色只读，密码不涉及 -->
+    <el-dialog v-model="profileVisible" title="个人信息" width="440px">
+      <div v-loading="profileLoading" class="profile-body">
+        <!-- 头像区：点击头像选图上传，el-upload 的 http-request 接管上传逻辑 -->
+        <div class="profile-avatar">
+          <el-upload :show-file-list="false" accept="image/*" :http-request="handleAvatarUpload">
+            <el-badge :value="avatarUploading ? '上传中' : ''" type="info">
+              <el-avatar class="profile-avatar-img" :size="64" :src="avatarSrc">{{ initial }}</el-avatar>
+            </el-badge>
+          </el-upload>
+          <span class="profile-avatar-tip">点击头像更换</span>
+        </div>
+
+        <el-form label-width="80px">
+          <!-- disabled：只读项，账号和角色不允许修改 -->
+          <el-form-item label="账号">
+            <el-input :model-value="userInfo?.user_name" disabled />
+          </el-form-item>
+          <el-form-item label="角色">
+            <el-input :model-value="roleText" disabled />
+          </el-form-item>
+          <el-form-item label="姓名">
+            <el-input v-model="profileForm.name" placeholder="请输入姓名" maxlength="30" />
+          </el-form-item>
+          <el-form-item label="邮箱">
+            <el-input v-model="profileForm.email" placeholder="请输入邮箱" maxlength="50" />
+          </el-form-item>
+          <el-form-item label="手机号">
+            <el-input v-model="profileForm.phone" placeholder="请输入手机号" maxlength="20" />
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="profileVisible = false">取消</el-button>
+        <el-button type="primary" :loading="profileSaving" @click="saveProfile">保存修改</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -214,6 +340,60 @@ function fmtTime(iso: string) {
   font-size: 12px;
   color: #909399;
   text-align: center;
+}
+
+/* 弹层内的分割线 */
+.popover-divider {
+  height: 1px;
+  background: #ebeef5;
+  margin: 8px 0;
+}
+
+/* 「个人信息」入口：横向排列图标+文字，hover 变主题色 */
+.popover-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 0;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1f2d3d;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.popover-action:hover {
+  color: #1f6feb;
+  background: #e8f1fd;
+}
+
+/* 弹窗表单区域：给 loading 遮罩一个最小高度，避免闪动 */
+.profile-body {
+  min-height: 180px;
+}
+
+/* 弹窗头像区：居中展示，头像 + 提示文字纵向排列 */
+.profile-avatar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+/* 弹窗里的大头像：去掉右边距让文字头像真正居中 */
+.profile-avatar-img {
+  background-color: #1f6feb;
+  color: #fff;
+  font-weight: 600;
+  --el-avatar-bg-color: #1f6feb;
+}
+
+/* 「点击头像更换」提示 */
+.profile-avatar-tip {
+  font-size: 12px;
+  color: #909399;
 }
 
 .stats {
