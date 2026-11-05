@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Calendar, DataBoard, House, Clock, Lock, User } from '@element-plus/icons-vue'
+import { Calendar, Clock, Lock, User } from '@element-plus/icons-vue'
 import { homeApi } from '@/api/home'
 import { authApi } from '@/api/auth'
 import { fileApi } from '@/api/files'
@@ -345,29 +345,6 @@ function fmtTime(iso: string) {
             </el-tag>
           </div>
         </el-card>
-
-        <el-card shadow="never" class="panel">
-          <template #header>
-            <div class="panel-title">
-              <el-icon><DataBoard /></el-icon>
-              <span>快捷入口</span>
-            </div>
-          </template>
-          <div class="shortcuts">
-            <div class="shortcut" @click="$router.push('/labs')">
-              <el-icon :size="20"><House /></el-icon>
-              <span>实验室列表</span>
-            </div>
-            <div class="shortcut" @click="$router.push('/devices')">
-              <el-icon :size="20"><DataBoard /></el-icon>
-              <span>设备管理</span>
-            </div>
-            <div class="shortcut" @click="$router.push('/ai')">
-              <el-icon :size="20"><Calendar /></el-icon>
-              <span>AI 助手</span>
-            </div>
-          </div>
-        </el-card>
       </section>
     </main>
 
@@ -635,27 +612,5 @@ function fmtTime(iso: string) {
 .recent-meta {
   font-size: 12px;
   color: #8492a6;
-}
-
-.shortcuts {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.shortcut {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
-  border-radius: 10px;
-  background: #f4f6f8;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.shortcut:hover {
-  background: #e8f1fd;
-  color: #1f6feb;
 }
 </style>

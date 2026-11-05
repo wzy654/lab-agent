@@ -55,7 +55,8 @@ function handleLogout() {
           <el-icon><Monitor /></el-icon>
           <template #title>实验室管理</template>
         </el-menu-item>
-        <el-menu-item index="/devices">
+        <!-- 设备管理仅管理员可见（后端 /equipment/list 接口也校验了管理员角色，双保险） -->
+        <el-menu-item v-if="userInfo?.role === 'admin'" index="/devices">
           <el-icon><Cpu /></el-icon>
           <template #title>设备管理</template>
         </el-menu-item>

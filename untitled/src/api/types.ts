@@ -31,14 +31,23 @@ export interface LabInfo {
   status: '0' | '1'
 }
 
-export interface Device {
+// 与后端 EquipmentResponse（app/schemas/equipment.py）保持一致，后端字段为准
+export interface DeviceInfo {
   id: number
-  name: string
-  model: string
+  /** 所属实验室的 id */
   lab_id: number
+  /** 所属实验室的名称（后端从关联关系补充，前端只管显示） */
   lab_name: string
-  total: number
-  available: number
+  name: string
+  description: string | null
+  /** 数量（台） */
+  quantity: number
+  /** 型号规格 */
+  spec: string | null
+  /** 图片相对路径（如 uploads/xxx.png），可为空 */
+  img: string | null
+  /** 状态，后端约定：0 禁用 / 1 启用 */
+  status: '0' | '1'
 }
 
 export interface Booking {

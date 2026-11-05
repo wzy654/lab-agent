@@ -2,5 +2,6 @@
 # main.py 的 create_all 才会把这些表建出来（没被导入的模型会被忽略）
 from .User import User
 from .lab import Lab
+from .equipment import Equipment
 
-__all__ = ["User", "Lab"]
+__all__ = ["User", "Lab", "Equipment"]
