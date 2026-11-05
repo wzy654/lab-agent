@@ -50,6 +50,23 @@ export interface DeviceInfo {
   status: '0' | '1'
 }
 
+// 实验室详情里嵌套的设备信息（精简版），对应后端 LabEquipmentItem
+export interface LabEquipmentItem {
+  id: number
+  name: string
+  spec: string | null
+  quantity: number
+  description: string | null
+  img: string | null
+  status: '0' | '1'
+}
+
+// 实验室详情：基础信息 + 挂载的设备列表，对应后端 LabDetailResponse
+export interface LabDetail extends LabInfo {
+  equipment: LabEquipmentItem[]
+}
+
+// 预约记录（首页最近预约列表用）
 export interface Booking {
   id: number
   lab_id: number

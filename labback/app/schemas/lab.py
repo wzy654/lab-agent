@@ -16,6 +16,25 @@ class LabResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class LabEquipmentItem(BaseModel):
+    """实验室详情里嵌套的设备信息（精简版，只放浏览时关心的字段）"""
+    id: int
+    name: str
+    spec: str | None
+    quantity: int
+    description: str | None
+    img: str | None
+    status: str
+    # from_attributes：字段名与 Equipment 模型一致，可直接从模型对象转换
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LabDetailResponse(LabResponse):
+    """实验室详情响应：在基础信息之上，附带该实验室挂载的设备列表"""
+    # 继承 LabResponse 的全部字段，额外加一个设备列表，默认空列表
+    equipment: list[LabEquipmentItem] = []
+
+
 class LabAddRequest(BaseModel):
     """管理员新增实验室请求"""
     name: str

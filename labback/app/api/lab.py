@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.dependencies.auth import get_current_admin
+from app.dependencies.auth import get_current_admin, get_current_user
 from app.models.User import User
 from app.schemas.lab import (LabAddRequest, LabSetStatusRequest,
                              LabUpdateRequest)
@@ -15,14 +15,25 @@ lab_router = APIRouter(prefix="/lab", tags=["实验室管理"])
 @lab_router.get("/list")
 def get_lab_list(page: int = 1,
                  page_size: int = 10,
+                 status: str | None = None,
                  name: str | None = None,
-                 current_admin: User = Depends(get_current_admin),
+                 current_user: User = Depends(get_current_user),  # 管理员和学生都能访问
                  db: Session = Depends(get_db)):
-    """获取实验室分页列表（需管理员）"""
-    return Result.success(lab_service.get_lab_page(db, page, page_size, name),
+    """获取实验室分页列表：学生只能看到启用的，管理员可按状态过滤"""
+    # 学生强制只看启用的实验室（status 参数忽略）；管理员按传入的状态过滤，不传=全部
+    if current_user.role != "admin":
+        status = "1"
+    return Result.success(lab_service.get_lab_page(db, page, status, page_size, name),
                           message="获取实验室列表成功")
 
 
+@lab_router.get("/{lab_id}")
+def get_lab(lab_id: int,
+            current_user: User = Depends(get_current_user),  # 管理员和学生都能访问
+            db: Session = Depends(get_db)):
+    """获取实验室详情（含挂载的设备列表）"""
+    return Result.success(lab_service.get_lab(db, lab_id, current_user),
+                          message="获取实验室信息成功")
 @lab_router.post("/add")
 def add_lab(data: LabAddRequest,
             current_admin: User = Depends(get_current_admin),

@@ -38,7 +38,12 @@ const router = createRouter({
           component: HomeView,
         },
         {
-          path: 'labs', // 子路由不用写开头的 /，完整地址是 /labs
+          path: 'lab-center', // 实验室浏览：学生和管理员都能访问的浏览页
+          name: 'lab-center',
+          component: () => import('@/views/LabCenterView.vue'),
+        },
+        {
+          path: 'labs', // 实验室管理：管理员专用的增删改查页
           name: 'labs',
           component: () => import('@/views/LabManageView.vue'),
         },

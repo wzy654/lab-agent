@@ -1,15 +1,16 @@
 // ============================================================
 // 实验室模块：管理员端的增删改查接口定义
-// 后端已实现（全部需管理员 token）：
-//   GET    /lab/list?page=&page_size=&name= → PageResult<LabInfo>
-//   POST   /lab/add → LabInfo
-//   PUT    /lab/admin/update → LabInfo
-//   PUT    /lab/admin/status → LabInfo
-//   DELETE /lab/{id} → null
+// 后端已实现（全部需管理员 token，/list 和 /{id} 除外）：
+//   GET    /lab/list?page=&page_size=&name=&status= → PageResult<LabInfo>（登录即可，学生只看启用）
+//   GET    /lab/{id} → LabDetail（登录即可，学生只能看启用的）
+//   POST   /lab/add → LabInfo（需管理员）
+//   PUT    /lab/admin/update → LabInfo（需管理员）
+//   PUT    /lab/admin/status → LabInfo（需管理员）
+//   DELETE /lab/{id} → null（需管理员）
 // ============================================================
 
 import { del, get, post, put } from '@/utils/request'
-import type { LabInfo, PageResult } from './types'
+import type { LabDetail, LabInfo, PageResult } from './types'
 
 // 新增实验室的入参类型：name/capacity/开放/关闭时间必填，其余选填
 export interface LabCreateData {
@@ -36,14 +37,20 @@ export interface LabUpdateData {
 }
 
 export const labApi = {
-  // 分页查询实验室列表（需管理员 token）
-  // page 页码（从 1 开始）、pageSize 每页条数、name 按名称模糊搜索（可选）
-  page(page: number, pageSize: number, name?: string) {
+  // 分页查询实验室列表（管理员和学生都能访问）
+  // 学生端后端会强制只返回启用的；管理员可通过 status 传 '0'/'1' 过滤，不传查全部
+  page(page: number, pageSize: number, name?: string, status?: '0' | '1') {
     return get<PageResult<LabInfo>>('/lab/list', {
       page,
       page_size: pageSize, // 字段名以后端为准：后端参数叫 page_size
       name,                // undefined 的参数 axios 会自动丢弃，不会拼到 URL 上
+      status,
     })
+  },
+
+  // 实验室详情（含挂载的设备列表），管理员和学生都能访问
+  detail(id: number) {
+    return get<LabDetail>(`/lab/${id}`)
   },
 
   // 新增实验室（需管理员 token），参数与后端 LabAddRequest 对齐

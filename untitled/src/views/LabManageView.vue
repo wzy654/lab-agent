@@ -23,12 +23,17 @@ const page = ref(1)       // 当前页码（从 1 开始）
 const pageSize = ref(10)  // 每页条数
 const total = ref(0)      // 满足条件的总条数（由后端返回，驱动分页控件）
 
+// 状态过滤：'' 表示全部；'1' 只看启用、'0' 只看禁用
+const statusFilter = ref<'' | '0' | '1'>('')
+
 // 加载实验室列表：翻页、搜索、首屏、增删改后的刷新都走这一个函数
 async function loadLabs() {
   loading.value = true
   try {
-    // page() 对应 GET /lab/list?page=&page_size=&name=（需管理员 token）
-    const result = await labApi.page(page.value, pageSize.value, keyword.value)
+    // page() 对应 GET /lab/list?page=&page_size=&name=&status=（需管理员 token）
+    // statusFilter 为 ''（全部）时传 undefined，axios 会自动丢弃这个参数
+    const result = await labApi.page(page.value, pageSize.value, keyword.value,
+                                     statusFilter.value === '' ? undefined : statusFilter.value)
     labs.value = result.list
     total.value = result.total
   } catch (e) {
@@ -49,6 +54,12 @@ function handleSearch() {
 function handleSearchClear() {
   keyword.value = ''
   handleSearch()
+}
+
+// 切换状态过滤（全部/启用/禁用）：从第 1 页开始查
+function handleStatusChange() {
+  page.value = 1
+  loadLabs()
 }
 
 // el-pagination 的页码变化回调：current-change 拿到新页码，重新查询
@@ -347,6 +358,12 @@ onMounted(loadLabs)
     <div class="page-header">
       <h2>实验室管理</h2>
       <div class="header-actions">
+        <!-- 状态过滤：全部 / 启用 / 禁用，切换后从第 1 页重新查询 -->
+        <el-radio-group v-model="statusFilter" @change="handleStatusChange">
+          <el-radio-button value="">全部</el-radio-button>
+          <el-radio-button value="1">启用</el-radio-button>
+          <el-radio-button value="0">禁用</el-radio-button>
+        </el-radio-group>
         <!-- @keyup.enter：按回车也能触发搜索；@clear：点叉号清空后自动刷新 -->
         <el-input
           v-model="keyword"

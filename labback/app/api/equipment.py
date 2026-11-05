@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.dependencies.auth import get_current_admin
+from app.dependencies.auth import get_current_admin, get_current_user
 from app.models.User import User
 from app.schemas.equipment import (EquipmentAddRequest,
                                    EquipmentSetStatusRequest,
@@ -18,7 +18,7 @@ def get_equipment_list(page: int = 1,
                        page_size: int = 10,
                        name: str | None = None,
                        lab_id: int | None = None,
-                       current_admin: User = Depends(get_current_admin),
+                       current_admin: User = Depends(get_current_user),
                        db: Session = Depends(get_db)):
     """获取设备分页列表（需管理员，可按名称搜索、按实验室过滤）"""
     return Result.success(equipment_service.get_equipment_page(db, page, page_size, name, lab_id),
