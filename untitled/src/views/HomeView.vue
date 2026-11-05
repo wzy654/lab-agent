@@ -7,9 +7,9 @@ import { homeApi } from '@/api/home'
 import { authApi } from '@/api/auth'
 import { fileApi } from '@/api/files'
 import { fileUrl } from '@/utils/request'
-import { logout } from '@/utils/auth'
 import type { Booking, HomeStats, UploadResult } from '@/api/types'
 // 全局共享的用户信息（登录时存入 localStorage，见 utils/user.ts）
+// clearUser：退出登录用，清缓存的同时重置内存里的全局 userInfo
 import { useUser } from '@/utils/user'
 
 const stats = ref<HomeStats>()
@@ -17,7 +17,7 @@ const recent = ref<Booking[]>([])
 const loading = ref(true)
 
 // 用户信息：头像和悬停文案用；updateUser 用于保存后同步全局
-const { userInfo, updateUser } = useUser()
+const { userInfo, updateUser, clearUser } = useUser()
 // 计算属性：头像显示姓名首字；拿不到用户信息时显示 ?
 const initial = computed(() => userInfo.value?.name?.charAt(0) ?? '?')
 // 计算属性：有头像时拼出完整图片地址；没有则返回 null（模板里回退到文字头像）
@@ -193,7 +193,7 @@ async function savePassword() {
     ElMessage.success('密码修改成功，请重新登录')
     pwdVisible.value = false
     profileVisible.value = false
-    logout()               // 清掉 token 和用户信息（见 utils/auth.ts）
+    clearUser()            // 清缓存 + 重置内存里的全局用户信息（见 utils/user.ts）
     router.push('/login')  // 回到登录页
   } catch (e) {
     // 失败必须提示（如「旧密码错误」），不能静默吞掉

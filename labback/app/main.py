@@ -59,6 +59,7 @@ async def unknown_error_handler(request: Request, exc: Exception):
     )
 
 Base.metadata.create_all(bind=engine)
+
 #get方式的请求接口
 @app.get("/")
 def read_root():

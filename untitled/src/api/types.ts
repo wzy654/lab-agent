@@ -13,13 +13,22 @@ export interface UserInfo {
   status: '0' | '1'
 }
 
-export interface Lab {
+// 与后端 LabResponse（app/schemas/lab.py）保持一致，后端字段为准
+export interface LabInfo {
   id: number
   name: string
-  location: string
+  description: string | null
+  location: string | null
+  /** 容量（人数） */
   capacity: number
-  device_count: number
-  is_open: boolean
+  /** 开放时间，"HH:mm" 格式字符串，如 "08:00" */
+  open_time: string
+  /** 关闭时间，"HH:mm" 格式字符串，如 "22:00" */
+  close_time: string
+  /** 封面图片相对路径（如 uploads/xxx.png），可为空 */
+  img: string | null
+  /** 状态，后端约定：0 禁用 / 1 启用 */
+  status: '0' | '1'
 }
 
 export interface Device {

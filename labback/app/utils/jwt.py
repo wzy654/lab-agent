@@ -26,7 +26,9 @@ def decode_jwt_token(token: str) -> int :
         payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
         return payload["user_id"]
     except jwt.ExpiredSignatureError:
-        raise BizError(401, "登录过期，请重新登录")
+        # 必须用 UnauthorizedError（HTTP 401）：前端只在收到 401 时才自动跳登录页。
+        # 如果用 BizError（默认 HTTP 400），过期时前端只会弹错误提示、不会跳转
+        raise UnauthorizedError(UNAUTHORIZED, "登录已过期，请重新登录")
     except jwt.DecodeError:
         raise UnauthorizedError(UNAUTHORIZED, "登录凭证无效，请重新登录")
 

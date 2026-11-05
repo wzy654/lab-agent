@@ -11,8 +11,8 @@
 // axios 是第三方 HTTP 请求库（npm install axios 安装）
 // AxiosError 是 axios 的错误类型，用于标注 catch 回调里 err 参数的类型
 import axios, { AxiosError } from 'axios'
-// 从同目录的 auth.ts 导入 token 的读取/删除方法（见 utils/auth.ts）
-import { getToken, removeToken } from './auth'
+// 从同目录的 auth.ts 导入 token 和用户信息的清除方法（见 utils/auth.ts）
+import { getToken, removeToken, removeUserInfo } from './auth'
 
 // import.meta.env.VITE_API_BASE：读取项目根目录 .env 文件里的配置项
 // （Vite 要求环境变量必须以 VITE_ 开头才会暴露给前端代码）
@@ -88,13 +88,15 @@ instance.interceptors.response.use(
     // err.response 是 HTTP 层的响应（可能不存在，比如断网时）
     // ?. 可选链：如果前面是 null/undefined 就不继续取值，避免报错
     const status = err.response?.status // HTTP 状态码，如 404、500
-    // 401 = 未登录或 token 已失效 → 清掉本地 token，强制回登录页
+    // 401 = 未登录或 token 已失效 → 清掉本地登录状态，强制回登录页
     if (status === 401) {
-      removeToken()
-      // location 是浏览器内置对象，pathname 是当前路径（如 /users）
-      // 已经在登录页就不用再跳，避免死循环
+      removeToken()      // 清 token：路由守卫靠它判断「未登录」，不清会死循环
+      removeUserInfo()   // 清用户信息：避免残留上一个账号的数据
+      // location.href 是整页跳转（会重新加载整个应用），
+      // 内存里的全局状态也会随之重新初始化，不会有残留
+      // pathname 是当前路径（如 /users）：已经在登录页就不用再跳，避免死循环
       if (location.pathname !== '/login') location.href = '/login'
-      return Promise.reject(new HttpError(401, '登录已过期'))
+      return Promise.reject(new HttpError(401, '登录已过期，请重新登录'))
     }
     // 其他错误：优先显示后端返回的具体错误信息（如「账号不存在」）
     // ?? 空值合并：左边为 null/undefined 时才用右边的值

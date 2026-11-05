@@ -13,7 +13,12 @@ import { ElMessage } from 'element-plus'
 // FormInstance：表单实例的类型；FormRules：校验规则的类型（仅类型，无运行时代码）
 import type { FormInstance, FormRules } from 'element-plus'
 import { authApi } from '@/api/auth'
-import { setToken, setUserInfo } from '@/utils/auth'
+// useUser：全局用户状态的组合式函数，saveLoginData 会同时更新
+// localStorage 缓存和内存里的全局 userInfo（只更新缓存会导致头像等处显示旧用户）
+import { useUser } from '@/utils/user'
+
+// 拿到 saveLoginData 方法（模块级单例，任何组件拿到的都是同一份全局状态）
+const { saveLoginData } = useUser()
 
 const router = useRouter()
 // ref 指向模板里的 <el-form ref="formRef">，拿到表单实例后可调用 validate() 等方法
@@ -82,8 +87,8 @@ async function handleLogin() {
     // await：等待接口返回；authApi.login 内部走 utils/request.ts 的封装
     // 解构赋值：从返回的 { user, token } 对象中直接取出两个字段
     const { token, user } = await authApi.login(form.username, form.password)
-    setToken(token) // 存 token：之后所有请求会自动带上（见 utils/request.ts 请求拦截器）
-    setUserInfo(user) // 存用户信息：页面显示当前用户用
+    // 统一保存：token 写缓存 + 用户信息写缓存 + 更新内存里的全局 userInfo
+    saveLoginData({ token, user })
     ElMessage.success('登录成功')
     router.push('/') // 跳转到首页，路由守卫检测到有 token 会放行
   } catch (err) {

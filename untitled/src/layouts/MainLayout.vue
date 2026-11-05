@@ -9,18 +9,18 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 // 从 @element-plus/icons-vue 导入图标组件，模板里用 <el-icon> 包裹使用
 import { ChatDotRound, Cpu, House, Monitor, SwitchButton, User } from '@element-plus/icons-vue'
-// 登出方法：清 token 和用户信息（见 utils/auth.ts）
-import { logout } from '@/utils/auth'
 // 全局用户信息：用来判断当前登录者是不是管理员（决定是否显示「用户管理」菜单）
+// clearUser：退出登录用——除了清 token 和用户信息缓存，还会把内存里的全局
+// userInfo 重置为 null，避免切换账号后页面残留上一个用户的数据
 import { useUser } from '@/utils/user'
 
 const router = useRouter()
 const isCollapse = ref(false)
-const { userInfo } = useUser()
+const { userInfo, clearUser } = useUser()
 
-// 退出登录：清理本地缓存并回到登录页（后端暂无登出接口）
+// 退出登录：清理缓存和内存状态并回到登录页（后端暂无登出接口）
 function handleLogout() {
-  logout()
+  clearUser()
   router.push('/login') // 跳转到登录页
 }
 </script>
@@ -50,7 +50,8 @@ function handleLogout() {
           <template #title>系统首页</template>
           <!-- #title 是具名插槽：折叠模式下悬浮显示的文字 -->
         </el-menu-item>
-        <el-menu-item index="/labs">
+        <!-- 实验室管理仅管理员可见（后端 /lab/list 接口也校验了管理员角色，双保险） -->
+        <el-menu-item v-if="userInfo?.role === 'admin'" index="/labs">
           <el-icon><Monitor /></el-icon>
           <template #title>实验室管理</template>
         </el-menu-item>
