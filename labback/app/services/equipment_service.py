@@ -78,7 +78,7 @@ def add_equipment(db, data):
         spec=data.spec,
         description=data.description,
         img=data.img,
-        status="1",  # 新增的设备默认启用
+        status=1,  # 新增的设备默认启用
     )
     db.add(eq)
     db.commit()
@@ -118,8 +118,8 @@ def set_status(db, data):
     eq = db.get(Equipment, data.id)
     if not eq:
         raise BizError(message="设备不存在")
-    # 状态值只允许 "0"禁用 / "1"启用（与数据库约定一致）
-    if data.status not in ("0", "1"):
+    # 状态值只允许 0 禁用 / 1 启用（与数据库约定一致）
+    if data.status not in (0, 1):
         raise BizError(message="状态不合法，只支持 0(禁用) 或 1(启用)")
     eq.status = data.status
     db.commit()

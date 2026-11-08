@@ -53,6 +53,16 @@ const router = createRouter({
           component: () => import('@/views/DeviceManageView.vue'),
         },
         {
+          path: 'my-reservations', // 我的预约：查看自己的预约记录、取消待审核预约
+          name: 'my-reservations',
+          component: () => import('@/views/MyReservationView.vue'),
+        },
+        {
+          path: 'review', // 预约审核：管理员审核所有人的预约
+          name: 'review',
+          component: () => import('@/views/ReservationReviewView.vue'),
+        },
+        {
           path: 'users',
           name: 'users',
           component: () => import('@/views/UserManageView.vue'),

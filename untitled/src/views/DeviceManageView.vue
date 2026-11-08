@@ -79,15 +79,15 @@ function handlePageChange(newPage: number) {
   loadDevices()
 }
 
-// 启用/禁用设备：row.status 为 '1' 时按钮显示「禁用」，为 '0' 时显示「启用」
+// 启用/禁用设备：row.status 为 1 时按钮显示「禁用」，为 0 时显示「启用」
 async function handleToggleStatus(row: DeviceInfo) {
-  // 目标状态：当前是启用（'1'）就要改成禁用（'0'），反之亦然
-  const targetStatus = row.status === '1' ? '0' : '1'
-  const actionText = targetStatus === '0' ? '禁用' : '启用'
+  // 目标状态：当前是启用（1）就要改成禁用（0），反之亦然
+  const targetStatus = row.status === 1 ? 0 : 1
+  const actionText = targetStatus === 0 ? '禁用' : '启用'
   try {
     // ElMessageBox.confirm：确认弹窗，点「确定」才继续，点「取消」会抛异常
     await ElMessageBox.confirm(
-      `确定要${actionText}设备「${row.name}」吗？${targetStatus === '0' ? '禁用后用户将无法预约该设备。' : ''}`,
+      `确定要${actionText}设备「${row.name}」吗？${targetStatus === 0 ? '禁用后用户将无法预约该设备。' : ''}`,
       `确认${actionText}`,
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' },
     )
@@ -399,8 +399,8 @@ onMounted(() => {
       <el-table-column prop="description" label="说明" min-width="160" show-overflow-tooltip />
       <el-table-column label="状态" width="90">
         <template #default="{ row }">
-          <el-tag :type="row.status === '1' ? 'success' : 'info'" size="small" effect="plain">
-            {{ row.status === '1' ? '启用' : '禁用' }}
+          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small" effect="plain">
+            {{ row.status === 1 ? '启用' : '禁用' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -410,7 +410,7 @@ onMounted(() => {
           <el-button link type="primary" size="small" @click="openEditDialog(row)">编辑</el-button>
           <!-- 按钮文字随状态变化：启用中显示「禁用」（红），已禁用显示「启用」（绿） -->
           <el-button
-            v-if="row.status === '1'"
+            v-if="row.status === 1"
             link
             type="danger"
             size="small"

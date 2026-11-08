@@ -47,8 +47,8 @@ export const userApi = {
   },
 
   // 管理员启用/禁用用户（需管理员 token）
-  // status：'1' 启用、'0' 禁用（与后端数据库约定一致）
-  setStatus(user_name: string, status: '0' | '1') {
+  // status：1 启用、0 禁用（与后端数据库约定一致，整数类型）
+  setStatus(user_name: string, status: 0 | 1) {
     return put<UserInfo>('/user/admin/status', { user_name, status })
   },
 

@@ -3,18 +3,28 @@ import { computed, onMounted, reactive, ref, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Calendar, Clock, Lock, User } from '@element-plus/icons-vue'
-import { homeApi } from '@/api/home'
 import { authApi } from '@/api/auth'
 import { fileApi } from '@/api/files'
+import { reservationApi } from '@/api/reservations'
 import { fileUrl } from '@/utils/request'
-import type { Booking, HomeStats, UploadResult } from '@/api/types'
+import type { ReservationInfo, ReservationStatus, UploadResult } from '@/api/types'
 // 全局共享的用户信息（登录时存入 localStorage，见 utils/user.ts）
 // clearUser：退出登录用，清缓存的同时重置内存里的全局 userInfo
 import { useUser } from '@/utils/user'
 
-const stats = ref<HomeStats>()
-const recent = ref<Booking[]>([])
+const recent = ref<ReservationInfo[]>([])  // 最近预约列表（当前登录用户自己的）
 const loading = ref(true)
+
+// 最近预约的时间范围：1=近1天 7=近1周 30=近1月，默认近1周
+const range = ref<1 | 7 | 30>(7)
+
+// 预约状态 → 中文文案 + 标签颜色的映射表（0 待审核 / 1 已通过 / 2 已拒绝 / 3 已取消）
+const statusMeta: Record<ReservationStatus, { text: string; tag: 'warning' | 'success' | 'danger' | 'info' }> = {
+  0: { text: '待审核', tag: 'warning' },
+  1: { text: '已通过', tag: 'success' },
+  2: { text: '已拒绝', tag: 'danger' },
+  3: { text: '已取消', tag: 'info' },
+}
 
 // 用户信息：头像和悬停文案用；updateUser 用于保存后同步全局
 const { userInfo, updateUser, clearUser } = useUser()
@@ -236,31 +246,20 @@ async function saveProfile() {
   }
 }
 
-onMounted(async () => {
+// 加载最近预约：按当前选择的时间范围（近1天/1周/1月）查自己的预约，取最新 10 条
+async function loadRecent() {
+  loading.value = true
   try {
-    const [s, bookings] = await Promise.all([
-      homeApi.stats(),
-      homeApi.recentBookings(3),
-    ])
-    stats.value = s
-    recent.value = bookings
+    const result = await reservationApi.myPage(1, 10, undefined, range.value)
+    recent.value = result.list
   } catch {
     // 接口未就绪或请求失败时保持空状态
   } finally {
     loading.value = false
   }
-})
-
-const statusText: Record<Booking['status'], string> = {
-  pending: '待审核',
-  approved: '已通过',
-  rejected: '已驳回',
-  cancelled: '已取消',
 }
 
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleString('zh-CN', { hour12: false })
-}
+onMounted(loadRecent)
 </script>
 
 <template>
@@ -274,7 +273,7 @@ function fmtTime(iso: string) {
         </div>
         <!-- 右侧：按钮 + 头像，水平排列 -->
         <div class="banner-right">
-          <el-button type="primary" size="large" round>
+          <el-button type="primary" size="large" round @click="router.push('/lab-center')">
             <el-icon style="margin-right: 6px"><Calendar /></el-icon>
             立即预约
           </el-button>
@@ -298,51 +297,36 @@ function fmtTime(iso: string) {
         </div>
       </section>
 
-      <!-- 数据统计 -->
-      <section v-loading="loading" class="stats">
-        <div class="stat-card">
-          <span class="stat-label">今日预约</span>
-          <span class="stat-value">{{ stats?.today_bookings ?? '--' }}</span>
-          <span class="stat-desc">较昨日 {{ (stats?.today_bookings_delta ?? 0) >= 0 ? '+' : '' }}{{ stats?.today_bookings_delta ?? '--' }}</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">空闲实验室</span>
-          <span class="stat-value">{{ stats?.free_labs ?? '--' }}</span>
-          <span class="stat-desc">共 {{ stats?.total_labs ?? '--' }} 间</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">待审核</span>
-          <span class="stat-value">{{ stats?.pending_reviews ?? '--' }}</span>
-          <span class="stat-desc">需尽快处理</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">本月使用率</span>
-          <span class="stat-value">{{ stats ? `${stats.monthly_usage_rate}%` : '--' }}</span>
-          <span class="stat-desc">实验室整体使用情况</span>
-        </div>
-      </section>
-
-      <!-- 下方两栏 -->
+      <!-- 最近预约：展示当前用户近 1 天 / 1 周 / 1 个月的预约记录 -->
       <section class="content">
         <el-card shadow="never" class="panel">
           <template #header>
-            <div class="panel-title">
-              <el-icon><Clock /></el-icon>
-              <span>最近预约</span>
+            <div class="panel-head">
+              <div class="panel-title">
+                <el-icon><Clock /></el-icon>
+                <span>最近预约</span>
+              </div>
+              <!-- 时间范围切换：切换后重新加载列表 -->
+              <el-radio-group v-model="range" size="small" @change="loadRecent">
+                <el-radio-button :value="1">近1天</el-radio-button>
+                <el-radio-button :value="7">近1周</el-radio-button>
+                <el-radio-button :value="30">近1月</el-radio-button>
+              </el-radio-group>
             </div>
           </template>
-          <el-empty v-if="!loading && recent.length === 0" description="暂无预约记录" :image-size="80" />
-          <div v-for="b in recent" :key="b.id" class="recent-row">
-            <div class="recent-info">
-              <span class="recent-lab">{{ b.lab_name }}</span>
-              <span class="recent-meta">{{ b.user_name }} · {{ fmtTime(b.start_time) }}</span>
+          <div v-loading="loading" class="recent-body">
+            <el-empty v-if="!loading && recent.length === 0" description="暂无预约记录" :image-size="80" />
+            <div v-for="b in recent" :key="b.id" class="recent-row">
+              <div class="recent-info">
+                <span class="recent-lab">
+                  {{ b.lab_name }}<template v-if="b.equipment_name"> · {{ b.equipment_name }}</template>
+                </span>
+                <span class="recent-meta">{{ b.date }} {{ b.start_time }} ~ {{ b.end_time }}</span>
+              </div>
+              <el-tag :type="statusMeta[b.status].tag" size="small">
+                {{ statusMeta[b.status].text }}
+              </el-tag>
             </div>
-            <el-tag
-              :type="b.status === 'approved' ? 'success' : b.status === 'pending' ? 'warning' : 'danger'"
-              size="small"
-            >
-              {{ statusText[b.status] }}
-            </el-tag>
           </div>
         </el-card>
       </section>
@@ -537,46 +521,21 @@ function fmtTime(iso: string) {
   color: #909399;
 }
 
-.stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-.stat-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  border: 1px solid #e8ebee;
-}
-
-.stat-label {
-  font-size: 13px;
-  color: #8492a6;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #1f2d3d;
-}
-
-.stat-desc {
-  font-size: 12px;
-  color: #a0aec0;
-}
-
+/* 最近预约区域：单卡片占满一行 */
 .content {
-  display: grid;
-  grid-template-columns: 3fr 2fr;
-  gap: 16px;
+  display: flex;
 }
 
 .panel {
+  flex: 1;
   border-radius: 12px;
+}
+
+/* 最近预约卡片的头部：标题左、时间范围切换右 */
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .panel-title {
@@ -584,6 +543,11 @@ function fmtTime(iso: string) {
   align-items: center;
   gap: 6px;
   font-weight: 600;
+}
+
+/* 列表区域：给 v-loading 一个最小高度，避免空状态时卡片塌陷 */
+.recent-body {
+  min-height: 120px;
 }
 
 .recent-row {

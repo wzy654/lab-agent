@@ -8,7 +8,7 @@ import { ref } from 'vue'
 // useRouter：获取路由实例，用于代码里跳转页面（router.push）
 import { useRouter } from 'vue-router'
 // 从 @element-plus/icons-vue 导入图标组件，模板里用 <el-icon> 包裹使用
-import { ChatDotRound, Cpu, House, Monitor, SwitchButton, User, View } from '@element-plus/icons-vue'
+import { Calendar, ChatDotRound, Cpu, House, Monitor, SwitchButton, User, View } from '@element-plus/icons-vue'
 // 全局用户信息：用来判断当前登录者是不是管理员（决定是否显示「用户管理」菜单）
 // clearUser：退出登录用——除了清 token 和用户信息缓存，还会把内存里的全局
 // userInfo 重置为 null，避免切换账号后页面残留上一个用户的数据
@@ -64,6 +64,16 @@ function handleLogout() {
         <el-menu-item v-if="userInfo?.role === 'admin'" index="/devices">
           <el-icon><Cpu /></el-icon>
           <template #title>设备管理</template>
+        </el-menu-item>
+        <!-- 我的预约：仅学生可见（管理员用「预约审核」页，不重复展示） -->
+        <el-menu-item v-if="userInfo?.role !== 'admin'" index="/my-reservations">
+          <el-icon><Calendar /></el-icon>
+          <template #title>我的预约</template>
+        </el-menu-item>
+        <!-- 预约审核仅管理员可见（后端 /reservation/admin/* 接口也校验了管理员角色，双保险） -->
+        <el-menu-item v-if="userInfo?.role === 'admin'" index="/review">
+          <el-icon><View /></el-icon>
+          <template #title>预约审核</template>
         </el-menu-item>
         <!-- 用户管理仅管理员可见（后端接口也校验了管理员角色，双保险） -->
         <el-menu-item v-if="userInfo?.role === 'admin'" index="/users">

@@ -1,4 +1,4 @@
-from sqlalchemy import String, Integer
+from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -15,4 +15,5 @@ class Lab(Base):
     open_time: Mapped[str] = mapped_column(String(20),comment="开放时间")
     close_time: Mapped[str] = mapped_column(String(20),comment="结束时间")
     img : Mapped[str] =mapped_column(String(100),comment="图片路径",nullable=True)
-    status: Mapped[str] = mapped_column(String(255), comment="状态,0:禁用,1:启用", default="1", nullable=False)
+    # 状态改为整数：0 禁用 / 1 启用（原来是字符串 "0"/"1"）
+    status: Mapped[int] = mapped_column(Integer, comment="状态,0:禁用,1:启用", default=1, nullable=False)

@@ -18,7 +18,7 @@ def login(db: Session,data:LoginRequest):
         raise BizError(message="账号不存在")
     if not verify_password(data.password, user.password):
         raise BizError(message="密码错误")
-    if user.status != "1":
+    if user.status != 1:
         raise BizError(message="账号已被禁用")
     token = create_jwt_token(user.id)
     return LoginResponse(user=UserResponse.model_validate(user), token=token)
@@ -30,7 +30,7 @@ def register(db: Session,data:RegisterRequest):
     # 姓名未填时生成默认名：「用户」+ 6位随机数
     name = data.name if data.name else f"用户{random.randint(100000, 999999)}"
     user=User(user_name=data.user_name,password=hash_password(data.password)
-              ,name=name,status="1",role="student")
+              ,name=name,status=1,role="student")
     db.add(user)
     # 提交事务
     db.commit()

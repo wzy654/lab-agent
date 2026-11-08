@@ -1,5 +1,5 @@
 from app.database import Base
-from sqlalchemy import String
+from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -14,4 +14,5 @@ class User(Base):
     email: Mapped[str | None] = mapped_column(String(255), comment="邮箱", nullable=True)
     phone: Mapped[str | None] = mapped_column(String(255), comment="手机号", nullable=True)
     avatar: Mapped[str | None] = mapped_column(String(255), comment="头像", nullable=True)
-    status: Mapped[str] = mapped_column(String(255), comment="状态,0:禁用,1:启用", default="1", nullable=False)
+    # 状态改为整数：0 禁用 / 1 启用（原来是字符串 "0"/"1"，与前端约定同步改为 int）
+    status: Mapped[int] = mapped_column(Integer, comment="状态,0:禁用,1:启用", default=1, nullable=False)

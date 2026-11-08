@@ -1,3 +1,6 @@
+import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -8,10 +11,21 @@ from app.api import api
 from app.config import UPLOAD_DIR
 from app.database import Base, engine
 from app.exceptions import BizError, ErrorCode
+from app.services import reservation_service
 from app.utils.logger import get_logger
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 应用启动时：拉起「过期预约自动取消」的后台扫描任务（每分钟一次）
+    expire_task = asyncio.create_task(reservation_service.run_expire_scan())
+    yield  # yield 之前是启动阶段，之后是运行阶段；没有 yield 应用无法启动
+    # 应用关闭时：取消后台任务，避免事件循环关闭时报错
+    expire_task.cancel()
+
+
 #fastapi 应用实例
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -27,6 +41,9 @@ app.add_middleware(
 #挂载文件上传目录
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 logger = get_logger()
+
+
+
 
 #统一异常处理：所有异常最终都转换为 {code, message, data} 格式
 @app.exception_handler(BizError)

@@ -18,7 +18,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise BizError(ErrorCode.NOT_FOUND,message="用户不存在")
-    if user.status!="1":
+    if user.status != 1:
         raise BizError(ErrorCode.FORBIDDEN,message="用户已被禁用")
     return user
 

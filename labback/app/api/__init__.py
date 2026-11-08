@@ -4,6 +4,7 @@ from app.api.auth import auth_router
 from app.api.equipment import equipment_router
 from app.api.files import file_router
 from app.api.lab import lab_router
+from app.api.reservation import reservation_router
 from app.api.user import user_router
 
 api = APIRouter(prefix="/api")
@@ -12,3 +13,4 @@ api.include_router(user_router)
 api.include_router(file_router)
 api.include_router(lab_router)
 api.include_router(equipment_router)
+api.include_router(reservation_router)

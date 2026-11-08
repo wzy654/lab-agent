@@ -11,7 +11,7 @@ class LabResponse(BaseModel):
     open_time: str
     close_time: str
     img: str | None
-    status: str
+    status: int
     # from_attributes：允许直接从 SQLAlchemy 模型对象读取同名字段转换
     model_config = ConfigDict(from_attributes=True)
 
@@ -24,7 +24,7 @@ class LabEquipmentItem(BaseModel):
     quantity: int
     description: str | None
     img: str | None
-    status: str
+    status: int
     # from_attributes：字段名与 Equipment 模型一致，可直接从模型对象转换
     model_config = ConfigDict(from_attributes=True)
 
@@ -65,4 +65,4 @@ class LabUpdateRequest(BaseModel):
 class LabSetStatusRequest(BaseModel):
     """管理员启用/禁用实验室请求"""
     id: int
-    status: str  # "0"禁用 "1"启用
+    status: int  # 0 禁用 1 启用

@@ -66,7 +66,7 @@ def add_user(db, data):
     # 姓名未填时生成默认名：「用户」+ 6位随机数
     name = data.name if data.name else f"用户{random.randint(100000, 999999)}"
     user = User(user_name=data.user_name, password=hash_password(data.password)
-                , name=name, status="1", role=data.role)
+                , name=name, status=1, role=data.role)
     db.add(user)
     # 提交事务
     db.commit()
@@ -101,11 +101,11 @@ def admin_set_status(db, data, current_admin):
     user = db.query(User).filter(User.user_name == data.user_name).first()
     if not user:
         raise BizError(message="账号不存在")
-    # 校验状态值合法性（"0"禁用 / "1"启用，与数据库约定一致）
-    if data.status not in ("0", "1"):
+    # 校验状态值合法性（0 禁用 / 1 启用，与数据库约定一致）
+    if data.status not in (0, 1):
         raise BizError(message="状态不合法，只支持 0(禁用) 或 1(启用)")
     # 禁止管理员禁用自己正在使用的账号，防止把自己锁在系统外
-    if user.user_name == current_admin.user_name and data.status == "0":
+    if user.user_name == current_admin.user_name and data.status == 0:
         raise BizError(message="不能禁用当前登录的管理员账号")
     user.status = data.status
     db.commit()

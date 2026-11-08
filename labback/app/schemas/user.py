@@ -10,7 +10,7 @@ class UserResponse(BaseModel):
     email: str | None
     phone: str | None
     avatar: str | None
-    status: str
+    status: int  # 0 禁用 / 1 启用
     #配置模型属性,对象可转换为json
     model_config = ConfigDict(from_attributes=True)
 
@@ -46,5 +46,5 @@ class AdminUpdateUserRequest(BaseModel):
 class AdminSetStatusRequest(BaseModel):
     """管理员启用/禁用用户请求"""
     user_name: str
-    status: str  # "0"禁用 "1"启用
+    status: int  # 0 禁用 1 启用
 

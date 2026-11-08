@@ -14,7 +14,7 @@ class EquipmentResponse(BaseModel):
     quantity: int
     spec: str | None
     img: str | None
-    status: str
+    status: int
     # from_attributes：允许直接从 SQLAlchemy 模型对象读取同名字段转换
     model_config = ConfigDict(from_attributes=True)
 
@@ -48,4 +48,4 @@ class EquipmentUpdateRequest(BaseModel):
 class EquipmentSetStatusRequest(BaseModel):
     """管理员启用/禁用设备请求"""
     id: int
-    status: str  # "0"禁用 "1"启用
+    status: int  # 0 禁用 1 启用

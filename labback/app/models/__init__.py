@@ -3,5 +3,6 @@
 from .User import User
 from .lab import Lab
 from .equipment import Equipment
+from .reservation import Reservation
 
-__all__ = ["User", "Lab", "Equipment"]
+__all__ = ["User", "Lab", "Equipment", "Reservation"]

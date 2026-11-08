@@ -55,8 +55,8 @@ export const deviceApi = {
     return put<DeviceInfo>('/equipment/admin/update', data)
   },
 
-  // 启用/禁用设备（需管理员 token）：status 传 '0'（禁用）或 '1'（启用）
-  setStatus(id: number, status: '0' | '1') {
+  // 启用/禁用设备（需管理员 token）：status 传 0（禁用）或 1（启用）
+  setStatus(id: number, status: 0 | 1) {
     return put<DeviceInfo>('/equipment/admin/status', { id, status })
   },
 

@@ -38,8 +38,8 @@ export interface LabUpdateData {
 
 export const labApi = {
   // 分页查询实验室列表（管理员和学生都能访问）
-  // 学生端后端会强制只返回启用的；管理员可通过 status 传 '0'/'1' 过滤，不传查全部
-  page(page: number, pageSize: number, name?: string, status?: '0' | '1') {
+  // 学生端后端会强制只返回启用的；管理员可通过 status 传 0/1 过滤，不传查全部
+  page(page: number, pageSize: number, name?: string, status?: 0 | 1) {
     return get<PageResult<LabInfo>>('/lab/list', {
       page,
       page_size: pageSize, // 字段名以后端为准：后端参数叫 page_size
@@ -63,8 +63,8 @@ export const labApi = {
     return put<LabInfo>('/lab/admin/update', data)
   },
 
-  // 启用/禁用实验室（需管理员 token）：status 传 '0'（禁用）或 '1'（启用）
-  setStatus(id: number, status: '0' | '1') {
+  // 启用/禁用实验室（需管理员 token）：status 传 0（禁用）或 1（启用）
+  setStatus(id: number, status: 0 | 1) {
     return put<LabInfo>('/lab/admin/status', { id, status })
   },
 

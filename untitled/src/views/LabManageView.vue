@@ -23,8 +23,8 @@ const page = ref(1)       // 当前页码（从 1 开始）
 const pageSize = ref(10)  // 每页条数
 const total = ref(0)      // 满足条件的总条数（由后端返回，驱动分页控件）
 
-// 状态过滤：'' 表示全部；'1' 只看启用、'0' 只看禁用
-const statusFilter = ref<'' | '0' | '1'>('')
+// 状态过滤：'' 表示全部；1 只看启用、0 只看禁用（status 已改为整数类型）
+const statusFilter = ref<'' | 0 | 1>('')
 
 // 加载实验室列表：翻页、搜索、首屏、增删改后的刷新都走这一个函数
 async function loadLabs() {
@@ -68,15 +68,15 @@ function handlePageChange(newPage: number) {
   loadLabs()
 }
 
-// 启用/禁用实验室：row.status 为 '1' 时按钮显示「禁用」，为 '0' 时显示「启用」
+// 启用/禁用实验室：row.status 为 1 时按钮显示「禁用」，为 0 时显示「启用」
 async function handleToggleStatus(row: LabInfo) {
-  // 目标状态：当前是启用（'1'）就要改成禁用（'0'），反之亦然
-  const targetStatus = row.status === '1' ? '0' : '1'
-  const actionText = targetStatus === '0' ? '禁用' : '启用'
+  // 目标状态：当前是启用（1）就要改成禁用（0），反之亦然
+  const targetStatus = row.status === 1 ? 0 : 1
+  const actionText = targetStatus === 0 ? '禁用' : '启用'
   try {
     // ElMessageBox.confirm：确认弹窗，点「确定」才继续，点「取消」会抛异常
     await ElMessageBox.confirm(
-      `确定要${actionText}实验室「${row.name}」吗？${targetStatus === '0' ? '禁用后用户将无法预约该实验室。' : ''}`,
+      `确定要${actionText}实验室「${row.name}」吗？${targetStatus === 0 ? '禁用后用户将无法预约该实验室。' : ''}`,
       `确认${actionText}`,
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' },
     )
@@ -361,8 +361,8 @@ onMounted(loadLabs)
         <!-- 状态过滤：全部 / 启用 / 禁用，切换后从第 1 页重新查询 -->
         <el-radio-group v-model="statusFilter" @change="handleStatusChange">
           <el-radio-button value="">全部</el-radio-button>
-          <el-radio-button value="1">启用</el-radio-button>
-          <el-radio-button value="0">禁用</el-radio-button>
+          <el-radio-button :value="1">启用</el-radio-button>
+          <el-radio-button :value="0">禁用</el-radio-button>
         </el-radio-group>
         <!-- @keyup.enter：按回车也能触发搜索；@clear：点叉号清空后自动刷新 -->
         <el-input
@@ -410,8 +410,8 @@ onMounted(loadLabs)
       <el-table-column prop="description" label="简介" min-width="180" show-overflow-tooltip />
       <el-table-column label="状态" width="90">
         <template #default="{ row }">
-          <el-tag :type="row.status === '1' ? 'success' : 'info'" size="small" effect="plain">
-            {{ row.status === '1' ? '启用' : '禁用' }}
+          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small" effect="plain">
+            {{ row.status === 1 ? '启用' : '禁用' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -421,7 +421,7 @@ onMounted(loadLabs)
           <el-button link type="primary" size="small" @click="openEditDialog(row)">编辑</el-button>
           <!-- 按钮文字随状态变化：启用中显示「禁用」（红），已禁用显示「启用」（绿） -->
           <el-button
-            v-if="row.status === '1'"
+            v-if="row.status === 1"
             link
             type="danger"
             size="small"

@@ -9,8 +9,8 @@ export interface UserInfo {
   email: string | null
   phone: string | null
   avatar: string | null
-  /** 状态，后端约定：0 禁用 / 1 启用 */
-  status: '0' | '1'
+  /** 状态，后端约定：0 禁用 / 1 启用（整数） */
+  status: 0 | 1
 }
 
 // 与后端 LabResponse（app/schemas/lab.py）保持一致，后端字段为准
@@ -27,8 +27,8 @@ export interface LabInfo {
   close_time: string
   /** 封面图片相对路径（如 uploads/xxx.png），可为空 */
   img: string | null
-  /** 状态，后端约定：0 禁用 / 1 启用 */
-  status: '0' | '1'
+  /** 状态，后端约定：0 禁用 / 1 启用（整数） */
+  status: 0 | 1
 }
 
 // 与后端 EquipmentResponse（app/schemas/equipment.py）保持一致，后端字段为准
@@ -46,8 +46,8 @@ export interface DeviceInfo {
   spec: string | null
   /** 图片相对路径（如 uploads/xxx.png），可为空 */
   img: string | null
-  /** 状态，后端约定：0 禁用 / 1 启用 */
-  status: '0' | '1'
+  /** 状态，后端约定：0 禁用 / 1 启用（整数） */
+  status: 0 | 1
 }
 
 // 实验室详情里嵌套的设备信息（精简版），对应后端 LabEquipmentItem
@@ -58,7 +58,8 @@ export interface LabEquipmentItem {
   quantity: number
   description: string | null
   img: string | null
-  status: '0' | '1'
+  /** 状态，后端约定：0 禁用 / 1 启用（整数） */
+  status: 0 | 1
 }
 
 // 实验室详情：基础信息 + 挂载的设备列表，对应后端 LabDetailResponse
@@ -66,28 +67,36 @@ export interface LabDetail extends LabInfo {
   equipment: LabEquipmentItem[]
 }
 
-// 预约记录（首页最近预约列表用）
-export interface Booking {
+/** 预约状态（整数）：0 待审核 / 1 已通过 / 2 已拒绝 / 3 已取消 */
+export type ReservationStatus = 0 | 1 | 2 | 3
+
+// 预约记录，与后端 ReservationResponse（app/schemas/reservation.py）保持一致
+export interface ReservationInfo {
   id: number
-  lab_id: number
-  lab_name: string
+  /** 预约人用户 id */
+  user_id: number
+  /** 预约人姓名（后端通过关联关系补充） */
   user_name: string
+  lab_id: number
+  /** 实验室名称（后端通过关联关系补充） */
+  lab_name: string
+  /** 设备 id，null 表示预约整个实验室 */
+  equipment_id: number | null
+  /** 设备名称（预约整间实验室时为 null） */
+  equipment_name: string | null
+  /** 预约日期，"YYYY-MM-DD" */
+  date: string
+  /** 开始时间，"HH:mm" */
   start_time: string
+  /** 结束时间，"HH:mm" */
   end_time: string
-  status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+  remark: string | null
+  status: ReservationStatus
+  /** 提交时间（后端 datetime 序列化为 ISO 字符串） */
+  create_time: string | null
 }
 
-/** 首页统计数据 */
-export interface HomeStats {
-  today_bookings: number
-  today_bookings_delta: number
-  free_labs: number
-  total_labs: number
-  pending_reviews: number
-  monthly_usage_rate: number
-}
-
-/** AI 聊天 */
+/** AI 聊天消息 */
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
