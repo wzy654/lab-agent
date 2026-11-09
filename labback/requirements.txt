@@ -9,3 +9,4 @@ bcrypt==5.0.0
 pyjwt==2.15.1
 python-multipart==0.0.33
 openai==3.46.0
+chromadb==1.5.9

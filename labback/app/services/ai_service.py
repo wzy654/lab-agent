@@ -3,12 +3,17 @@ from openai import OpenAI
 from app.config import settings
 from app.exceptions import BizError
 from app.schemas.ai import ChatRequest
+from app.services import kb_service
 from app.utils.logger import get_logger
 
 logger = get_logger()
 
 SYSTEM_PROMPT=("你是一个专业的实验室预约助手，"
-               "你的任务是根据用户的问题，预约实验室的资源。但是现在你无法查看数据，所以可以提示用户到实验室预约功能查看")
+               "你的任务是根据用户的问题，预约实验室的资源。但是现在你无法查看数据库，"
+               "但是你可以根据提供的资料库，回答用户的问题。"
+               "不明确的问题，你可以提示用户到实验室预约功能查看。"
+               "不能回复无关问题")
+
 def get_client():
     """获取AI客户端"""
     if not settings.LLM_API_KEY:
@@ -31,13 +36,21 @@ def chat(data:ChatRequest):
 
     if not history:
         raise BizError(message="请输入问题")
+
+    # history 里是 model_dump() 转出的字典，取字段要用 ["role"] 而不是 .role（.role 会 AttributeError）
+    question = next((item["content"] for item in reversed(history) if item["role"] == "user"), "")
+
+    kb_results=kb_service.search(question) if question else ""
+    system_prompt=SYSTEM_PROMPT
+    if kb_results:
+        system_prompt += f"\n以下是检索出的资料：\n\n{kb_results}"
     client = get_client()
     try:
         response = client.chat.completions.create(
             # 模型名统一从 settings 读取（pydantic-settings 读 .env，不会注入 os.environ，getenv 取不到）
             model=settings.LLM_API_MODEL,
             # 系统提示词用 role="system"；messages 必须是一个完整列表，不能再用 *history 位置解包
-            messages=[{"role": "system", "content": SYSTEM_PROMPT}] + history,
+            messages=[{"role": "system", "content": system_prompt}] + history,
         )
         # 从响应里取第一条回复的 message 对象（变量名别和返回值弄混，之前写成 message 导致 NameError）
         reply = response.choices[0].message
