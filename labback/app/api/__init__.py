@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.ai import ai_router
 from app.api.auth import auth_router
 from app.api.equipment import equipment_router
 from app.api.files import file_router
@@ -14,3 +15,4 @@ api.include_router(file_router)
 api.include_router(lab_router)
 api.include_router(equipment_router)
 api.include_router(reservation_router)
+api.include_router(ai_router)

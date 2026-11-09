@@ -32,14 +32,13 @@ async function send() {
   scrollBottom()
 
   try {
-    // 对接后端 LangGraph：POST /api/ai/chat
+    // POST /api/ai/chat：把完整对话历史发给后端，拿到大模型的回复
     const reply = await aiApi.chat(messages.value.map(({ role, content }) => ({ role, content })))
     messages.value.push({ role: 'assistant', content: reply })
-  } catch {
-    messages.value.push({
-      role: 'assistant',
-      content: '抱歉，AI 服务暂时不可用，请确认后端 /api/ai/chat 接口已启动。',
-    })
+  } catch (e) {
+    // 优先展示后端返回的具体错误（如「AI 服务调用失败: 403 配额用尽」），请求发不出去时用兜底文案
+    const detail = e instanceof Error && e.message ? e.message : 'AI 服务暂时不可用'
+    messages.value.push({ role: 'assistant', content: `抱歉，回复失败：${detail}` })
   } finally {
     sending.value = false
     scrollBottom()
@@ -51,7 +50,7 @@ async function send() {
   <div class="chat-page">
     <div class="chat-header">
       <h2>AI 智能助手</h2>
-      <el-tag size="small" effect="plain">LangGraph 驱动</el-tag>
+      <el-tag size="small" effect="plain">实验室预约助手</el-tag>
     </div>
 
     <div ref="listRef" class="chat-list">
