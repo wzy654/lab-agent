@@ -16,6 +16,8 @@ const messages = ref<Message[]>([
 ])
 const input = ref('')
 const sending = ref(false)
+const statusText = ref('') // 工具调用过程文案（如「查询开放实验室…」），流式期间展示
+const useStream = ref(true) // 是否开启流式输出：开=打字机+过程可见，关=一次性返回
 const listRef = ref<HTMLElement>()
 
 async function scrollBottom() {
@@ -31,15 +33,51 @@ async function send() {
   sending.value = true
   scrollBottom()
 
+  // 预先占位一条空的 AI 回复：流式期间每个 token 事件往里追加，实现打字机效果
+  messages.value.push({ role: 'assistant', content: '' })
+  const last = messages.value[messages.value.length - 1]
+
   try {
-    // POST /api/ai/chat：把完整对话历史发给后端，拿到大模型的回复
-    const reply = await aiApi.chat(messages.value.map(({ role, content }) => ({ role, content })))
-    messages.value.push({ role: 'assistant', content: reply })
+    // 发给后端的历史不含最后这条空占位（slice 去掉），避免模型把空消息当上下文
+    const history = messages.value
+      .slice(0, -1)
+      .filter((m) => m.content.trim())
+      .map(({ role, content }) => ({ role, content }))
+
+    if (useStream.value) {
+      // 流式模式：POST /ai/chat/stream，逐事件更新气泡
+      await aiApi.chatStream(history, (event) => {
+        if (event.type === 'status') {
+          statusText.value = event.message
+        } else if (event.type === 'tool_start') {
+          // 后端 message 已是中文文案（TOOL_LABELS 映射），直接展示
+          statusText.value = `${event.message}…`
+          // 过渡语和正式回答之间留个分隔，避免混成一坨
+          if (last.content) last.content += '\n\n'
+          scrollBottom()
+        } else if (event.type === 'tool_end') {
+          statusText.value = '整理回答中…'
+        } else if (event.type === 'token') {
+          last.content += event.content
+          scrollBottom()
+        } else if (event.type === 'error') {
+          last.content += (last.content ? '\n\n' : '') + `抱歉，回复失败：${event.message}`
+        }
+        // done 事件无需处理，finally 里统一收尾
+      })
+    } else {
+      // 非流式模式：POST /ai/chat，一次性拿完整回复
+      statusText.value = '正在思考'
+      last.content = await aiApi.chat(history)
+    }
   } catch (e) {
-    // 优先展示后端返回的具体错误（如「AI 服务调用失败: 403 配额用尽」），请求发不出去时用兜底文案
+    // 请求发不出去（断网/超时/4xx）时走这里；流内 error 事件上面已经处理
     const detail = e instanceof Error && e.message ? e.message : 'AI 服务暂时不可用'
-    messages.value.push({ role: 'assistant', content: `抱歉，回复失败：${detail}` })
+    last.content = `抱歉，回复失败：${detail}`
   } finally {
+    // 收尾：清状态文案；回答全程为空时兜底一句，避免气泡空白
+    statusText.value = ''
+    if (!last.content.trim()) last.content = '抱歉，回复失败：AI 服务暂时不可用'
     sending.value = false
     scrollBottom()
   }
@@ -62,8 +100,8 @@ async function send() {
       >
         <div class="bubble">{{ m.content }}</div>
       </div>
-      <div v-if="sending" class="chat-row is-ai">
-        <div class="bubble typing">对方正在输入…</div>
+      <div v-if="sending && statusText" class="chat-row is-ai">
+        <div class="status-chip">{{ statusText }}</div>
       </div>
     </div>
 
@@ -74,6 +112,11 @@ async function send() {
         size="large"
         @keyup.enter="send"
       />
+      <!-- 流式输出开关：开=打字机逐字显示+工具过程可见，关=一次性返回完整回答 -->
+      <div class="stream-toggle" title="切换流式/一次性输出">
+        <el-switch v-model="useStream" size="small" />
+        <span>流式</span>
+      </div>
       <el-button type="primary" size="large" :icon="Promotion" :loading="sending" @click="send">
         发送
       </el-button>
@@ -147,9 +190,35 @@ async function send() {
   color: #8492a6;
 }
 
+/* 工具调用过程的小标签：比气泡更轻量，展示「查询开放实验室…」这类过程文案 */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #8492a6;
+  background: #f4f6f8;
+  border: 1px solid #e8ebee;
+}
+
 .chat-input {
   display: flex;
   gap: 10px;
   margin-top: 16px;
+}
+
+/* 流式开关：开关+文字纵向居中，放在输入框和发送按钮之间 */
+.stream-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.stream-toggle span {
+  font-size: 13px;
+  color: #8492a6;
 }
 </style>

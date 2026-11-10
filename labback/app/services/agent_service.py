@@ -1,4 +1,4 @@
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, AIMessageChunk, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import MessagesState, StateGraph, START
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -11,7 +11,29 @@ from app.schemas.ai import ChatRequest
 from app.utils.agent_tools import build_tools
 from app.utils.logger import get_logger
 
+# 工具名 → 前端展示的中文文案：tool_start/tool_end 事件里直接带中文名，
+# 文案改动只动这张表，不用碰前端代码
+TOOL_LABELS={
+    "get_today": "获取当前日期",
+    "list_open_labs": "查询开放实验室",
+    "list_lab_equipment": "查询实验室设备",
+    "search_lab_docs": "检索知识库文档",
+    "create_lab_reservation": "提交预约",
+}
+
 logger = get_logger()
+def build_history(data:ChatRequest):
+    """构建langchain消息对象"""
+    history = []
+    for message in data.messages:
+        # 只放行合法角色（user/assistant）且内容非空的消息；条件是「合法才加入」，别写反
+        if message.role == "user" and message.content.strip():
+            history.append(HumanMessage(content=message.content.strip()))
+        elif message.role == "assistant" and message.content.strip():
+            history.append(AIMessage(content=message.content.strip()))
+    if not history:
+        raise BizError(message="请输入问题")
+    return history
 
 SYSTEM_PROMPT=("你是一个专业的实验室预约系统agent，回答要简洁明了，"
                "并根据检索出的资料库，回答用户关于预约规则、开放时间、安全规范、设备使用的问题。"
@@ -31,7 +53,10 @@ SYSTEM_PROMPT=("你是一个专业的实验室预约系统agent，回答要简�
 def build_agent(db:Session,current_user:User):
     tools=build_tools(db,current_user)
     llm = ChatOpenAI(base_url=settings.LLM_API_URL, api_key=settings.LLM_API_KEY, model=settings.LLM_API_MODEL,
-                    temperature=0.3 ).bind_tools(tools)#温度 0 时重试输出几乎不变，留一点随机性让重试有意义
+                    temperature=0.1, streaming=True,
+                    # 模型端点（中转站）偶尔会挂起不响应：不设超时的话 langgraph 会永远等，
+                    # 前端流式就表现为「一直转圈不返回」。60s 兜底，超时走 error 事件提示重试
+                    timeout=60 ).bind_tools(tools)
 
     def agent_node(state:MessagesState):
         """工作流节点"""
@@ -48,50 +73,56 @@ def build_agent(db:Session,current_user:User):
     graph.add_edge("tools","agent")
     return graph.compile()#编译工作流
 
-
-def _extract_reply(result)->str | None:
-    """从图的最终状态里提取要返回给用户的文字；拿不到有效回答时返回 None
-
-    结果 messages 里混着 system/human/ai/tool 多种消息；
-    LangChain 消息没有 .role 属性（会 AttributeError），判断类型必须用 isinstance；
-    带 tool_calls 的 AIMessage 是「过渡语」（模型调工具前说的话），不能当最终回答
+def stream_agent(db:Session,current_user:User,data:ChatRequest ):
+    """流式输出生成器
+    事件类型：status/tool_start/tool_end/token/done/error
     """
-    messages = result.get("messages") or []
-    for message in reversed(messages):
-        if isinstance(message, AIMessage) and not message.tool_calls:
-            content = message.content
-            if isinstance(content, list):
-                # 多模态返回时 content 是分段列表，拼接出纯文本部分
-                content = "".join(
-                    part.get("text","") if isinstance(part,dict) else str(part)
-                    for part in content
-                )
-            if not content or not content.strip():
-                logger.warning(f"跳过空 content 的 AIMessage，tool_calls={bool(message.tool_calls)}")
-                continue
-            text=content.strip()
-            # 有些模型（尤其经 Qwen 系模板的中转）偶发把工具调用以标签文本写在
-            # content 里而不是走原生 tool_calls 通道——这不是给用户看的答案
-            if "<tool_call>" in text or "<function=" in text:
-                # 记录被过滤的内容摘要，便于从日志判断模型是否又在「文本模仿」工具调用
-                logger.warning(f"过滤伪工具调用文本输出: {text[:200]}")
-                return None
-            return text
-    logger.warning("最终状态中未找到可用的 AIMessage 文字回复")
-    return None
+    try:
+       history = build_history(data)
+       agent=build_agent(db,current_user)
+       # 注意：stream 和 invoke 一样，输入必须是 {"messages": [...]} 字典，
+       # 裸列表会被当成 __start__ 节点返回值报 Expected dict, got list
+       inputs={"messages":[SystemMessage(content=SYSTEM_PROMPT),*history]}
+       yield {"type":"status","message":"正在思考"}
+
+       # 单模式流即可拿到全部事件：messages 模式会流出图里产生的每种消息——
+       #   1) 模型回答的 AIMessageChunk（文字 token 或工具调用指令碎片）
+       #   2) 工具执行完的 ToolMessage
+       # 按消息类型分三种情况处理，一一对应到事件
+       for chunk,_meta in agent.stream(inputs,config={"recursion_limit":25},stream_mode="messages"):
+
+           if isinstance(chunk,AIMessageChunk):
+               # 模型消息：要么是给用户看的文字 token，要么是工具调用指令
+               if chunk.tool_call_chunks:
+                   # 工具调用指令碎片：只有首帧带工具名（后续帧 name 为空），
+                   # 首帧出现 = 工具开始；指令本身不给用户看
+                   name=chunk.tool_call_chunks[0].get("name") or ""
+                   if name:
+                       yield {"type":"tool_start","name":name,"message":TOOL_LABELS.get(name,name)}
+               elif chunk.content:
+                   # 正常文字增量 → token
+                   yield {"type":"token","content":chunk.content}
+
+           elif isinstance(chunk,ToolMessage):
+               # 工具结果消息流出 = 该工具已执行完
+               yield {"type":"tool_end","name":chunk.name,"message":TOOL_LABELS.get(chunk.name,chunk.name)}
+
+       # stream 自然走完 = 图跑完了（工具循环也包含在内），收尾
+       yield {"type":"done"}
+
+
+    except BizError as e:
+        yield {"type":"error","message":str(e)}
+    except Exception as e:
+        # 生成器里的异常要记日志再转成 error 事件，否则流静默中断前端只知道「断了」
+        logger.exception(f"流式智能体运行失败: {e}")
+        yield {"type":"error","message":"智能体运行时出错"}
+
 
 def run_agent(db:Session,user:User,data:ChatRequest ):
     if not data.messages:
         raise BizError(message="messages is empty")
-    history = []
-    for message in data.messages:
-        # 只放行合法角色（user/assistant）且内容非空的消息；条件是「合法才加入」，别写反
-        if message.role == "user" and message.content.strip():
-            history.append(HumanMessage(content=message.content.strip()))
-        elif message.role == "assistant" and message.content.strip():
-            history.append(AIMessage(content=message.content.strip()))
-    if not history:
-        raise BizError(message="请输入问题")
+    history = build_history(data)
 
     agent=build_agent(db,user)
     try:
@@ -104,9 +135,9 @@ def run_agent(db:Session,user:User,data:ChatRequest ):
                             # 25 是 langgraph 官方默认值，10 会在多工具流程中途被截断
                             config={"recursion_limit":25},
                             )
-            reply=_extract_reply(result)
-            if reply is not None:
-                return reply
+        reply = result["messages"][- 1].content
+
+        if reply and reply.strip(): return reply.strip()
         # 兜底：重试后仍没有可用的文字回复，显式报错而不是隐式返回 None
         raise BizError(message="智能体未能生成回答，请稍后重试")
     except BizError:
