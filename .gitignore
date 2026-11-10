@@ -9,6 +9,9 @@ logs/
 # 用户上传的文件（运行时产生，不入库）
 labback/uploads/
 
+# 向量库运行时数据（chromadb 自动生成，可由 data/kb 的 md 重建，不入库）
+labback/data/chroma/
+
 # Node
 node_modules/
 dist/
