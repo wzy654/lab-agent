@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import chromadb
 import numpy as np
 from chromadb import Collection
@@ -10,9 +8,11 @@ from app.config import BASE_DIR
 KB_DIR=BASE_DIR/"data"/"kb"
 CHROMA_DIR=BASE_DIR/"data"/"chroma"
 
-# 模型文件目录：chromadb 默认的缓存位置，已手动放置多语言模型 paraphrase-multilingual-MiniLM-L12-v2
-# （从 hf-mirror.com 下载，共 6 个文件，chromadb 检测到文件齐全就不会再去官方源下载）
-MODEL_DIR=Path.home()/".cache"/"chroma"/"onnx_models"/"all-MiniLM-L6-v2"/"onnx"
+# 模型文件目录：放在项目内（labback/models/），不依赖用户缓存目录，
+# 换机器部署时把 models 目录随项目一起拷走即可，避免 chromadb 静默下载英文模型导致检索劣化
+# （模型为 paraphrase-multilingual-MiniLM-L12-v2，量化 onnx 版，从 hf-mirror.com 下载）
+# 注意：模型文件较大（约122MB），已加入 .gitignore，不随 git 仓库分发
+MODEL_DIR=BASE_DIR/"models"/"multilingual-minilm-l12"
 
 _collection=None
 

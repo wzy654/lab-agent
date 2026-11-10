@@ -11,7 +11,7 @@ interface Message {
 const messages = ref<Message[]>([
   {
     role: 'assistant',
-    content: '你好，我是实验室智能助手。可以帮你查询空闲实验室、推荐设备、解答预约规则，试试问我"明天上午有哪些实验室空闲？"',
+    content: '你好，我是实验室智能助手。可以帮你查询空闲实验室、推荐设备、解答预约规则或者直接预约实验室，试试问我"明天上午有哪些实验室空闲？"',
   },
 ])
 const input = ref('')

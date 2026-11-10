@@ -19,6 +19,14 @@ from app.utils.logger import get_logger
 async def lifespan(app: FastAPI):
     # 应用启动时：拉起「过期预约自动取消」的后台扫描任务（每分钟一次）
     expire_task = asyncio.create_task(reservation_service.run_expire_scan())
+    # 预热知识库向量库：加载嵌入模型并完成向量导入，
+    # 模型文件缺失时启动阶段立刻报错，避免等到用户提问才失败（静默劣化最难排查）
+    try:
+        from app.services import kb_service
+        kb_service.get_collection()
+        logger.info("知识库向量库初始化完成")
+    except Exception as e:
+        logger.exception(f"知识库初始化失败（检查 labback/models 下的模型文件是否齐全）: {e}")
     yield  # yield 之前是启动阶段，之后是运行阶段；没有 yield 应用无法启动
     # 应用关闭时：取消后台任务，避免事件循环关闭时报错
     expire_task.cancel()
